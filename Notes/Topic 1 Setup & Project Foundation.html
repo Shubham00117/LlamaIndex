@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LlamaIndex — Topic 1: Setup & Project Foundation</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --surface: #13161e;
+      --border: #1e2330;
+      --accent: #f97316;
+      --accent2: #38bdf8;
+      --accent3: #a78bfa;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --code-bg: #0a0c10;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      padding: 40px 20px 80px;
+    }
+
+    .page-wrap {
+      max-width: 860px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      margin-bottom: 48px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tag {
+      background: var(--accent);
+      color: #fff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 4px;
+      white-space: nowrap;
+      margin-top: 6px;
+    }
+
+    .header-text h1 {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      line-height: 1.1;
+    }
+
+    .header-text p {
+      color: var(--muted);
+      font-size: 14px;
+      margin-top: 6px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Topic Card */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 24px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+
+    .card:hover { border-color: var(--accent); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(249,115,22,0.1);
+      border: 1px solid rgba(249,115,22,0.2);
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .card-header h2 {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.2px;
+    }
+
+    .card-body { padding: 20px 24px; }
+
+    .card-body p {
+      font-size: 14px;
+      color: #94a3b8;
+      line-height: 1.7;
+      margin-bottom: 14px;
+    }
+
+    /* Code block */
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      line-height: 1.7;
+      margin: 12px 0;
+    }
+
+    .kw  { color: #38bdf8; }
+    .fn  { color: #f97316; }
+    .str { color: #4ade80; }
+    .cm  { color: #475569; font-style: italic; }
+    .var { color: #e2e8f0; }
+    .kv  { color: #a78bfa; }
+
+    /* Pill list */
+    .pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .pill {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid;
+    }
+
+    .pill-blue  { color: var(--accent2); border-color: rgba(56,189,248,0.25); background: rgba(56,189,248,0.06); }
+    .pill-orange{ color: var(--accent);  border-color: rgba(249,115,22,0.25); background: rgba(249,115,22,0.06); }
+    .pill-purple{ color: var(--accent3); border-color: rgba(167,139,250,0.25); background: rgba(167,139,250,0.06); }
+    .pill-green { color: #4ade80;        border-color: rgba(74,222,128,0.25); background: rgba(74,222,128,0.06); }
+
+    /* Key-value notes */
+    .kv-grid {
+      display: grid;
+      grid-template-columns: 180px 1fr;
+      gap: 2px;
+      margin-top: 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .kv-row {
+      display: contents;
+    }
+
+    .kv-key {
+      background: rgba(255,255,255,0.03);
+      padding: 10px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--accent2);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .kv-val {
+      background: rgba(255,255,255,0.01);
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #94a3b8;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .kv-key:last-of-type, .kv-val:last-of-type { border-bottom: none; }
+
+    /* Note callout */
+    .note {
+      display: flex;
+      gap: 10px;
+      background: rgba(167,139,250,0.07);
+      border: 1px solid rgba(167,139,250,0.2);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-top: 14px;
+      font-size: 13px;
+      color: #c4b5fd;
+      line-height: 1.6;
+    }
+
+    .note span.icon { font-size: 16px; flex-shrink: 0; }
+
+    /* Section label */
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    footer {
+      margin-top: 60px;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    footer span { color: var(--accent); }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="tag">TOPIC 1 / 19</div>
+    <div class="header-text">
+      <h1>Setup &amp; Project Foundation</h1>
+      <p>3 subtopics · #1 · #2 · #3</p>
+    </div>
+  </div>
+
+
+  <!-- CARD 1 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#1</span>
+      <h2>Installation &amp; Project Structure</h2>
+    </div>
+    <div class="card-body">
+      <p>LlamaIndex is split into a lean core package plus optional integration packages. Always install only what you need to avoid bloat.</p>
+
+      <div class="section-label">Install</div>
+      <pre><span class="cm"># Core — always needed</span>
+<span class="fn">pip install</span> <span class="str">llama-index-core</span>
+
+<span class="cm"># LLM integration (pick yours)</span>
+<span class="fn">pip install</span> <span class="str">llama-index-llms-openai</span>
+<span class="fn">pip install</span> <span class="str">llama-index-llms-anthropic</span>
+
+<span class="cm"># Embedding integration</span>
+<span class="fn">pip install</span> <span class="str">llama-index-embeddings-openai</span>
+
+<span class="cm"># Vector store (e.g. Qdrant)</span>
+<span class="fn">pip install</span> <span class="str">llama-index-vector-stores-qdrant</span></pre>
+
+      <div class="section-label" style="margin-top:16px;">Recommended project structure</div>
+      <pre><span class="kv">my_rag_app/</span>
+<span class="str">├── main.py</span>          <span class="cm"># entry point</span>
+<span class="str">├── ingestion.py</span>     <span class="cm"># load + index docs</span>
+<span class="str">├── query.py</span>         <span class="cm"># query engine logic</span>
+<span class="str">├── config.py</span>        <span class="cm"># Settings, env vars</span>
+<span class="str">├── data/</span>            <span class="cm"># raw source documents</span>
+<span class="str">├── storage/</span>         <span class="cm"># persisted index</span>
+<span class="str">└── .env</span>             <span class="cm"># API keys</span></pre>
+
+      <div class="pills">
+        <span class="pill pill-orange">llama-index-core</span>
+        <span class="pill pill-blue">modular installs</span>
+        <span class="pill pill-green">separation of concerns</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 2 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#2</span>
+      <h2>Settings Configuration</h2>
+    </div>
+    <div class="card-body">
+      <p><code style="background:var(--code-bg);padding:2px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent2);">Settings</code> is a global singleton. Set it once at startup — all indexes, query engines, and pipelines pick it up automatically. No need to pass LLM/embed objects everywhere.</p>
+
+      <div class="section-label">Code</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core</span> <span class="kw">import</span> <span class="fn">Settings</span>
+<span class="kw">from</span> <span class="var">llama_index.llms.openai</span> <span class="kw">import</span> <span class="fn">OpenAI</span>
+<span class="kw">from</span> <span class="var">llama_index.embeddings.openai</span> <span class="kw">import</span> <span class="fn">OpenAIEmbedding</span>
+
+<span class="cm"># Set global LLM</span>
+<span class="fn">Settings</span>.llm = <span class="fn">OpenAI</span>(model=<span class="str">"gpt-4o"</span>, temperature=<span class="str">0.1</span>)
+
+<span class="cm"># Set global embedding model</span>
+<span class="fn">Settings</span>.embed_model = <span class="fn">OpenAIEmbedding</span>(model=<span class="str">"text-embedding-3-small"</span>)
+
+<span class="cm"># Chunk size &amp; overlap (tune per project)</span>
+<span class="fn">Settings</span>.chunk_size = <span class="kv">512</span>
+<span class="fn">Settings</span>.chunk_overlap = <span class="kv">50</span></pre>
+
+      <div class="section-label" style="margin-top:16px;">Key settings explained</div>
+      <div class="kv-grid">
+        <div class="kv-key">Settings.llm</div>
+        <div class="kv-val">The LLM used for generation, reranking, and agents</div>
+        <div class="kv-key">Settings.embed_model</div>
+        <div class="kv-val">Embedding model used during indexing and querying</div>
+        <div class="kv-key">Settings.chunk_size</div>
+        <div class="kv-val">Token size per chunk — smaller = precise, larger = context-rich</div>
+        <div class="kv-key">Settings.chunk_overlap</div>
+        <div class="kv-val">Overlap between chunks — avoids cutting off context at boundaries</div>
+      </div>
+
+      <div class="note">
+        <span class="icon">💡</span>
+        <span>Start with <strong>chunk_size=512, overlap=50</strong> for most RAG projects. Tune based on evaluation results later.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 3 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#3</span>
+      <h2>Async Programming Basics</h2>
+    </div>
+    <div class="card-body">
+      <p>Production LlamaIndex is almost entirely async. Query engines, ingestion pipelines, agents, and workflows all expose <code style="background:var(--code-bg);padding:2px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent2);">aquery()</code> / <code style="background:var(--code-bg);padding:2px 6px;border-radius:4px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent2);">arun()</code> async variants. Always use them in FastAPI and workflow contexts.</p>
+
+      <div class="section-label">Sync vs Async query</div>
+      <pre><span class="cm"># ❌ Sync — blocks the event loop (avoid in APIs)</span>
+<span class="var">response</span> = <span class="var">query_engine</span>.<span class="fn">query</span>(<span class="str">"What is RAG?"</span>)
+
+<span class="cm"># ✅ Async — non-blocking (use in production)</span>
+<span class="var">response</span> = <span class="kw">await</span> <span class="var">query_engine</span>.<span class="fn">aquery</span>(<span class="str">"What is RAG?"</span>)</pre>
+
+      <div class="section-label" style="margin-top:16px;">FastAPI integration pattern</div>
+      <pre><span class="kw">from</span> <span class="var">fastapi</span> <span class="kw">import</span> <span class="fn">FastAPI</span>
+
+<span class="var">app</span> = <span class="fn">FastAPI</span>()
+
+<span class="kw">@app</span>.<span class="fn">get</span>(<span class="str">"/query"</span>)
+<span class="kw">async def</span> <span class="fn">query_endpoint</span>(q: <span class="var">str</span>):
+    <span class="var">response</span> = <span class="kw">await</span> <span class="var">query_engine</span>.<span class="fn">aquery</span>(<span class="var">q</span>)
+    <span class="kw">return</span> {<span class="str">"answer"</span>: <span class="var">str</span>(<span class="var">response</span>)}</pre>
+
+      <div class="section-label" style="margin-top:16px;">Common async methods</div>
+      <div class="kv-grid">
+        <div class="kv-key">aquery()</div>
+        <div class="kv-val">Async query on QueryEngine</div>
+        <div class="kv-key">achat()</div>
+        <div class="kv-val">Async chat on ChatEngine</div>
+        <div class="kv-key">arun()</div>
+        <div class="kv-val">Async run for Agents &amp; Workflows</div>
+        <div class="kv-key">aload_data()</div>
+        <div class="kv-val">Async document loading</div>
+      </div>
+
+      <div class="note">
+        <span class="icon">⚡</span>
+        <span>Use <strong>asyncio.run()</strong> when calling async code from a plain Python script outside of FastAPI or a running event loop.</span>
+      </div>
+    </div>
+  </div>
+
+  <footer>LlamaIndex Notes · <span>Topic 1 of 19</span> · Setup &amp; Project Foundation</footer>
+
+</div>
+</body>
+</html>

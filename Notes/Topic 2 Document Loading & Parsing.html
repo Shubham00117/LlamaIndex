@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LlamaIndex — Topic 2: Document Loading & Parsing</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --surface: #13161e;
+      --border: #1e2330;
+      --accent: #38bdf8;
+      --accent2: #f97316;
+      --accent3: #4ade80;
+      --accent4: #a78bfa;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --code-bg: #0a0c10;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      padding: 40px 20px 80px;
+    }
+
+    .page-wrap { max-width: 860px; margin: 0 auto; }
+
+    .header {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      margin-bottom: 48px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tag {
+      background: var(--accent);
+      color: #0d0f14;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 4px;
+      white-space: nowrap;
+      margin-top: 6px;
+    }
+
+    .header-text h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1; }
+    .header-text p { color: var(--muted); font-size: 14px; margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 24px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: var(--accent); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(56,189,248,0.1);
+      border: 1px solid rgba(56,189,248,0.2);
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .card-header h2 { font-size: 16px; font-weight: 700; }
+
+    .card-body { padding: 20px 24px; }
+    .card-body p { font-size: 14px; color: #94a3b8; line-height: 1.7; margin-bottom: 14px; }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      line-height: 1.7;
+      margin: 12px 0;
+    }
+
+    .kw  { color: #38bdf8; }
+    .fn  { color: #f97316; }
+    .str { color: #4ade80; }
+    .cm  { color: #475569; font-style: italic; }
+    .var { color: #e2e8f0; }
+    .kv  { color: #a78bfa; }
+
+    .pills { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+    .pill {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid;
+    }
+    .pill-blue   { color: var(--accent);  border-color: rgba(56,189,248,0.25);  background: rgba(56,189,248,0.06); }
+    .pill-orange { color: var(--accent2); border-color: rgba(249,115,22,0.25);  background: rgba(249,115,22,0.06); }
+    .pill-green  { color: var(--accent3); border-color: rgba(74,222,128,0.25);  background: rgba(74,222,128,0.06); }
+    .pill-purple { color: var(--accent4); border-color: rgba(167,139,250,0.25); background: rgba(167,139,250,0.06); }
+
+    .kv-grid {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 0;
+      margin-top: 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .kv-key {
+      background: rgba(255,255,255,0.03);
+      padding: 10px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--accent);
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-val {
+      background: rgba(255,255,255,0.01);
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #94a3b8;
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-key:last-of-type, .kv-val:last-of-type { border-bottom: none; }
+
+    .note {
+      display: flex;
+      gap: 10px;
+      background: rgba(167,139,250,0.07);
+      border: 1px solid rgba(167,139,250,0.2);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-top: 14px;
+      font-size: 13px;
+      color: #c4b5fd;
+      line-height: 1.6;
+    }
+    .note-green {
+      background: rgba(74,222,128,0.06);
+      border-color: rgba(74,222,128,0.2);
+      color: #86efac;
+    }
+    .note-orange {
+      background: rgba(249,115,22,0.07);
+      border-color: rgba(249,115,22,0.2);
+      color: #fdba74;
+    }
+    .note span.icon { font-size: 16px; flex-shrink: 0; }
+
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+
+    /* file type badges */
+    .badge-row { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+    .badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 5px 12px;
+      border-radius: 6px;
+      letter-spacing: 0.5px;
+    }
+    .badge-pdf  { background: rgba(249,115,22,0.15); color: #fb923c; border: 1px solid rgba(249,115,22,0.3); }
+    .badge-docx { background: rgba(56,189,248,0.12); color: #38bdf8; border: 1px solid rgba(56,189,248,0.3); }
+    .badge-txt  { background: rgba(74,222,128,0.10); color: #4ade80; border: 1px solid rgba(74,222,128,0.3); }
+    .badge-csv  { background: rgba(167,139,250,0.12); color: #a78bfa; border: 1px solid rgba(167,139,250,0.3); }
+    .badge-html { background: rgba(251,191,36,0.10); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
+    .badge-md   { background: rgba(244,63,94,0.10); color: #fb7185; border: 1px solid rgba(244,63,94,0.3); }
+
+    footer {
+      margin-top: 60px;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    footer span { color: var(--accent); }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="tag">TOPIC 2 / 19</div>
+    <div class="header-text">
+      <h1>Document Loading &amp; Parsing</h1>
+      <p>6 subtopics · #4 → #9</p>
+    </div>
+  </div>
+
+
+  <!-- CARD 4 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#4</span>
+      <h2>SimpleDirectoryReader</h2>
+    </div>
+    <div class="card-body">
+      <p>The fastest way to load local files. Points to a folder and auto-detects file types. Used in almost every project for loading source documents.</p>
+
+      <div class="badge-row">
+        <span class="badge badge-pdf">PDF</span>
+        <span class="badge badge-docx">DOCX</span>
+        <span class="badge badge-txt">TXT</span>
+        <span class="badge badge-csv">CSV</span>
+        <span class="badge badge-html">HTML</span>
+        <span class="badge badge-md">MD</span>
+      </div>
+
+      <div class="section-label">Code</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core</span> <span class="kw">import</span> <span class="fn">SimpleDirectoryReader</span>
+
+<span class="cm"># Load all files from a folder</span>
+<span class="var">documents</span> = <span class="fn">SimpleDirectoryReader</span>(
+    input_dir=<span class="str">"./data"</span>
+).<span class="fn">load_data</span>()
+
+<span class="cm"># Load specific files only</span>
+<span class="var">documents</span> = <span class="fn">SimpleDirectoryReader</span>(
+    input_files=[<span class="str">"./data/report.pdf"</span>, <span class="str">"./data/notes.txt"</span>]
+).<span class="fn">load_data</span>()
+
+<span class="cm"># Recursive — load from nested subdirectories</span>
+<span class="var">documents</span> = <span class="fn">SimpleDirectoryReader</span>(
+    input_dir=<span class="str">"./data"</span>,
+    recursive=<span class="kv">True</span>
+).<span class="fn">load_data</span>()</pre>
+
+      <div class="note note-green">
+        <span class="icon">✅</span>
+        <span>Each loaded file becomes a <strong>Document</strong> object with <code>.text</code> and <code>.metadata</code> (filename, page number, etc.) automatically populated.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 5 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#5</span>
+      <h2>LlamaHub Data Connectors</h2>
+    </div>
+    <div class="card-body">
+      <p>LlamaHub provides pre-built connectors for external data sources — cloud storage, wikis, CRMs, and more. Each is a separate pip install.</p>
+
+      <div class="section-label">Common connectors</div>
+      <div class="kv-grid">
+        <div class="kv-key">Google Drive</div>
+        <div class="kv-val"><code style="font-family:'JetBrains Mono',monospace;font-size:11px;">llama-index-readers-google</code></div>
+        <div class="kv-key">S3 / AWS</div>
+        <div class="kv-val"><code style="font-family:'JetBrains Mono',monospace;font-size:11px;">llama-index-readers-s3</code></div>
+        <div class="kv-key">SharePoint</div>
+        <div class="kv-val"><code style="font-family:'JetBrains Mono',monospace;font-size:11px;">llama-index-readers-microsoft-sharepoint</code></div>
+        <div class="kv-key">Confluence</div>
+        <div class="kv-val"><code style="font-family:'JetBrains Mono',monospace;font-size:11px;">llama-index-readers-confluence</code></div>
+        <div class="kv-key">OneDrive</div>
+        <div class="kv-val"><code style="font-family:'JetBrains Mono',monospace;font-size:11px;">llama-index-readers-microsoft-onedrive</code></div>
+      </div>
+
+      <div class="section-label" style="margin-top:16px;">Example — load from S3</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.readers.s3</span> <span class="kw">import</span> <span class="fn">S3Reader</span>
+
+<span class="var">reader</span> = <span class="fn">S3Reader</span>(
+    bucket=<span class="str">"my-company-docs"</span>,
+    prefix=<span class="str">"contracts/"</span>,
+    aws_access_id=<span class="str">"..."</span>,
+    aws_access_secret=<span class="str">"..."</span>
+)
+<span class="var">documents</span> = <span class="var">reader</span>.<span class="fn">load_data</span>()</pre>
+
+      <div class="note">
+        <span class="icon">💡</span>
+        <span>All connectors return the same <strong>Document</strong> objects — so your indexing code stays the same regardless of the data source.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 6 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#6</span>
+      <h2>LlamaParse — Complex PDF Parsing</h2>
+    </div>
+    <div class="card-body">
+      <p>Standard PDF readers fail on tables, multi-column layouts, and charts. LlamaParse is a cloud API that extracts these accurately — critical for financial, legal, and technical documents.</p>
+
+      <div class="section-label">Install &amp; usage</div>
+      <pre><span class="fn">pip install</span> <span class="str">llama-parse</span></pre>
+      <pre><span class="kw">from</span> <span class="var">llama_parse</span> <span class="kw">import</span> <span class="fn">LlamaParse</span>
+<span class="kw">import</span> <span class="var">os</span>
+
+<span class="var">parser</span> = <span class="fn">LlamaParse</span>(
+    api_key=<span class="var">os</span>.<span class="fn">environ</span>[<span class="str">"LLAMA_CLOUD_API_KEY"</span>],
+    result_type=<span class="str">"markdown"</span>,   <span class="cm"># or "text"</span>
+    verbose=<span class="kv">True</span>
+)
+
+<span class="var">documents</span> = <span class="kw">await</span> <span class="var">parser</span>.<span class="fn">aload_data</span>(<span class="str">"./report.pdf"</span>)</pre>
+
+      <div class="section-label" style="margin-top:16px;">Result types</div>
+      <div class="kv-grid">
+        <div class="kv-key">markdown</div>
+        <div class="kv-val">Best for tables, headers, structured content</div>
+        <div class="kv-key">text</div>
+        <div class="kv-val">Plain extracted text, simpler downstream processing</div>
+      </div>
+
+      <div class="note note-orange">
+        <span class="icon">⚠️</span>
+        <span>LlamaParse requires a <strong>LlamaCloud API key</strong> (free tier available). Use it when SimpleDirectoryReader gives poor results on complex PDFs.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 7 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#7</span>
+      <h2>Custom Document Loaders</h2>
+    </div>
+    <div class="card-body">
+      <p>When no connector exists for your data source (internal databases, APIs, proprietary formats), build your own by subclassing <code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent);">BaseReader</code>.</p>
+
+      <div class="section-label">Pattern</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core.readers.base</span> <span class="kw">import</span> <span class="fn">BaseReader</span>
+<span class="kw">from</span> <span class="var">llama_index.core.schema</span> <span class="kw">import</span> <span class="fn">Document</span>
+
+<span class="kw">class</span> <span class="fn">MyAPIReader</span>(<span class="fn">BaseReader</span>):
+    <span class="kw">def</span> <span class="fn">load_data</span>(<span class="var">self</span>, **<span class="var">kwargs</span>):
+        <span class="cm"># Fetch data from your source</span>
+        <span class="var">raw_data</span> = <span class="fn">fetch_from_internal_api</span>()
+
+        <span class="cm"># Return list of Document objects</span>
+        <span class="kw">return</span> [
+            <span class="fn">Document</span>(
+                text=<span class="var">item</span>[<span class="str">"content"</span>],
+                metadata={<span class="str">"source"</span>: <span class="var">item</span>[<span class="str">"id"</span>], <span class="str">"date"</span>: <span class="var">item</span>[<span class="str">"date"</span>]}
+            )
+            <span class="kw">for</span> <span class="var">item</span> <span class="kw">in</span> <span class="var">raw_data</span>
+        ]</pre>
+
+      <div class="pills">
+        <span class="pill pill-blue">BaseReader</span>
+        <span class="pill pill-orange">load_data()</span>
+        <span class="pill pill-green">Document objects</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 8 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#8</span>
+      <h2>Documents &amp; Nodes</h2>
+    </div>
+    <div class="card-body">
+      <p>These are the two core data structures in LlamaIndex. Understanding them is essential for any customization.</p>
+
+      <div class="kv-grid">
+        <div class="kv-key">Document</div>
+        <div class="kv-val">A full source file (e.g. one PDF). Has <code>.text</code>, <code>.metadata</code>, and a <code>.doc_id</code></div>
+        <div class="kv-key">Node (TextNode)</div>
+        <div class="kv-val">A chunk of a Document after splitting. What actually gets embedded and stored</div>
+        <div class="kv-key">.metadata</div>
+        <div class="kv-val">Dict of key-value pairs — used for filtering, tracking source, page, author, etc.</div>
+        <div class="kv-key">.relationships</div>
+        <div class="kv-val">Links between nodes (PREVIOUS, NEXT, PARENT, CHILD) for hierarchical retrieval</div>
+      </div>
+
+      <div class="section-label" style="margin-top:16px;">Creating manually</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core.schema</span> <span class="kw">import</span> <span class="fn">Document</span>, <span class="fn">TextNode</span>
+
+<span class="var">doc</span> = <span class="fn">Document</span>(
+    text=<span class="str">"LlamaIndex is a framework for building RAG apps."</span>,
+    metadata={<span class="str">"source"</span>: <span class="str">"docs"</span>, <span class="str">"author"</span>: <span class="str">"team"</span>}
+)
+
+<span class="var">node</span> = <span class="fn">TextNode</span>(
+    text=<span class="str">"LlamaIndex is a framework..."</span>,
+    metadata={<span class="str">"page"</span>: <span class="kv">1</span>}
+)</pre>
+    </div>
+  </div>
+
+
+  <!-- CARD 9 -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#9</span>
+      <h2>Metadata Extraction</h2>
+    </div>
+    <div class="card-body">
+      <p>Automatically extract structured metadata from documents using LLMs — titles, summaries, question hypotheses. This metadata improves retrieval quality significantly.</p>
+
+      <div class="section-label">Common extractors</div>
+      <div class="kv-grid">
+        <div class="kv-key">TitleExtractor</div>
+        <div class="kv-val">Extracts document title using LLM</div>
+        <div class="kv-key">SummaryExtractor</div>
+        <div class="kv-val">Generates a summary for each node/section</div>
+        <div class="kv-key">QuestionsAnsweredExtractor</div>
+        <div class="kv-val">Generates hypothetical questions the node answers — great for HyDE</div>
+        <div class="kv-key">KeywordExtractor</div>
+        <div class="kv-val">Extracts key terms for keyword-based filtering</div>
+      </div>
+
+      <div class="section-label" style="margin-top:16px;">Code</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core.extractors</span> <span class="kw">import</span> (
+    <span class="fn">TitleExtractor</span>, <span class="fn">QuestionsAnsweredExtractor</span>
+)
+<span class="kw">from</span> <span class="var">llama_index.core.ingestion</span> <span class="kw">import</span> <span class="fn">IngestionPipeline</span>
+
+<span class="var">pipeline</span> = <span class="fn">IngestionPipeline</span>(
+    transformations=[
+        <span class="fn">TitleExtractor</span>(),
+        <span class="fn">QuestionsAnsweredExtractor</span>(questions=<span class="kv">3</span>),
+    ]
+)
+<span class="var">nodes</span> = <span class="kw">await</span> <span class="var">pipeline</span>.<span class="fn">arun</span>(documents=<span class="var">documents</span>)</pre>
+
+      <div class="note">
+        <span class="icon">💡</span>
+        <span>Metadata extraction calls your LLM per node — it adds cost &amp; latency. Use it during ingestion (offline), not at query time.</span>
+      </div>
+    </div>
+  </div>
+
+  <footer>LlamaIndex Notes · <span>Topic 2 of 19</span> · Document Loading &amp; Parsing</footer>
+
+</div>
+</body>
+</html>
