@@ -1,70 +1,66 @@
 """
-LlamaIndex Example: LlamaHub Data Connectors
---------------------------------------------
-LlamaHub (llamahub.ai) is a community-driven repository of data connectors. 
-These connectors allow you to ingest data from hundreds of external platforms 
-like Google Drive, S3, Notion, Slack, and GitHub.
+Topic 2 — Document Loading & Parsing
+Subtopic #5: LlamaHub Data Connectors
 
-Key Benefits:
-  - Unified Interface: Every connector returns standard LlamaIndex `Document` objects.
-  - Decoupled Code: Your indexing and query logic remains unchanged regardless of the source.
-  - Extensibility: You can easily switch between data sources with minimal code changes.
+LlamaHub provides pre-built connectors for external data sources.
+Each connector is a separate pip package but returns the same
+Document objects — your indexing code stays the same.
 
-Note: Each connector usually requires its own specific pip package installation.
+Common connectors:
+  - Google Drive:  llama-index-readers-google
+  - S3 / AWS:     llama-index-readers-s3
+  - SharePoint:   llama-index-readers-microsoft-sharepoint
+  - Confluence:   llama-index-readers-confluence
+  - OneDrive:     llama-index-readers-microsoft-onedrive
 
-Documentation: https://llamahub.ai/
+⚠️ Each connector requires its own pip install.
 """
 
 
 def load_from_s3():
     """
-    Example: Loading documents from an AWS S3 bucket.
-    Requires: pip install llama-index-readers-s3
-    
-    This reader is ideal for companies storing massive document datasets in the cloud.
+    Load documents from an AWS S3 bucket.
+    pip install llama-index-readers-s3
     """
     from llama_index.readers.s3 import S3Reader
     
-    # Configuration for the S3 Reader
     reader = S3Reader(
-        bucket="my-company-documents",      # Name of your S3 bucket
-        prefix="contracts/",               # Optional: filter by sub-folder/prefix
-        aws_access_id="YOUR_ACCESS_KEY",   # Use environment variables in production!
+        bucket="my-company-docs",          # S3 bucket name
+        prefix="contracts/",               # Only load files under this prefix
+        aws_access_id="YOUR_ACCESS_KEY",   # AWS credentials
         aws_access_secret="YOUR_SECRET",
     )
     
-    # Executes retrieval and returns standard Document objects
+    # Returns standard Document objects
     documents = reader.load_data()
     
-    print(f"📄 Successfully retrieved {len(documents)} document(s) from AWS S3.")
+    print(f"📄 Loaded {len(documents)} document(s) from S3")
     return documents
 
 
 def load_from_google_drive():
     """
-    Example: Loading documents from Google Drive.
-    Requires: pip install llama-index-readers-google
-    
-    Note: Requires setting up a Google Cloud Project and obtaining 
-    `credentials.json` from the Google Developer Console.
+    Load documents from Google Drive.
+    pip install llama-index-readers-google
     """
     from llama_index.readers.google import GoogleDriveReader
     
-    reader = GoogleDriveReader()
+    reader = GoogleDriveReader(
+        # You need to set up Google API credentials first
+        # See: https://developers.google.com/drive/api/quickstart/python
+    )
     
-    # You can load from a specific folder ID or individual file IDs
-    documents = reader.load_data(folder_id="YOUR_GOOGLE_DRIVE_FOLDER_ID")
+    # Load from a specific folder by ID
+    documents = reader.load_data(folder_id="YOUR_FOLDER_ID")
     
-    print(f"📄 Successfully retrieved {len(documents)} document(s) from Google Drive.")
+    print(f"📄 Loaded {len(documents)} document(s) from Google Drive")
     return documents
 
 
 def load_from_confluence():
     """
-    Example: Loading wiki pages from Atlassian Confluence.
-    Requires: pip install llama-index-readers-confluence
-    
-    Useful for building RAG systems on top of internal company wikis.
+    Load pages from Atlassian Confluence wiki.
+    pip install llama-index-readers-confluence
     """
     from llama_index.readers.confluence import ConfluenceReader
     
@@ -72,21 +68,21 @@ def load_from_confluence():
         base_url="https://your-domain.atlassian.net/wiki",
     )
     
-    # Load pages from a specific Confluence space
+    # Load pages from a specific space
     documents = reader.load_data(
-        space_key="ENGINEERING",  # Confluence Space Key
-        include_attachments=True, # Also parse PDFs/images attached to pages
+        space_key="ENG",        # Confluence space key
+        include_attachments=True,
     )
     
-    print(f"📄 Successfully retrieved {len(documents)} page(s) from Confluence.")
+    print(f"📄 Loaded {len(documents)} page(s) from Confluence")
     return documents
 
 
 def show_connector_reference():
-    """Displays a reference table of popular data connectors and their packages."""
+    """Display a reference table of available data connectors."""
     
     print("=" * 60)
-    print("  LlamaHub Data Connectors Reference Guide")
+    print("  LlamaHub Data Connectors Reference")
     print("=" * 60)
     
     connectors = {
@@ -104,16 +100,14 @@ def show_connector_reference():
     
     for source, package in connectors.items():
         print(f"\n  📡 {source}")
-        print(f"     Installation: pip install {package}")
+        print(f"     pip install {package}")
     
-    print("\n💡 Core Insight: All connectors normalize data into Document objects.")
-    print("   This means your RAG pipeline doesn't care WHERE the data comes from!")
+    print("\n💡 All connectors return the same Document objects.")
+    print("   Your indexing code stays the same regardless of the source!")
 
 
 if __name__ == "__main__":
-    # Print the reference guide for the user
     show_connector_reference()
     
-    print("\n⚠️  DEVELOPER NOTE:")
-    print("   To execute these readers, you must install the associated package")
-    print("   and configure the necessary API credentials/tokens.")
+    print("\n⚠️  To run the actual connectors, install the specific package")
+    print("   and configure your credentials (API keys, tokens, etc.)")

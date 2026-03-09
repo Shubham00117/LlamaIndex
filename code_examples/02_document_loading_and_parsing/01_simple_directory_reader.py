@@ -1,118 +1,95 @@
 """
-LlamaIndex Example: SimpleDirectoryReader
------------------------------------------
-SimpleDirectoryReader is the fastest and easiest way to ingest local data into 
-LlamaIndex. It automatically detects and parses a wide variety of file formats 
-including PDF, DOCX, TXT, CSV, HTML, and Markdown.
+Topic 2 — Document Loading & Parsing
+Subtopic #4: SimpleDirectoryReader
 
-Core Concept:
-  Each loaded file is converted into one or more `Document` objects.
-  A Document contains:
-    - .text: The raw text extracted from the file.
-    - .metadata: A dictionary containing source information (filename, path, etc.).
-    - .doc_id: A unique identifier for the document.
+SimpleDirectoryReader is the fastest way to load local files.
+It auto-detects file types: PDF, DOCX, TXT, CSV, HTML, Markdown.
 
-Requirements:
-  pip install llama-index-core
+Each loaded file becomes a Document object with:
+  - .text     → the file's text content
+  - .metadata → dict with filename, page number, etc.
+
+⚠️ Requires: pip install llama-index-core
 """
 
 from llama_index.core import SimpleDirectoryReader
 
 
 def load_from_directory():
-    """
-    Demonstrates loading ALL supported files from a single directory.
+    """Load ALL files from a directory."""
     
-    LlamaIndex will automatically attempt to parse every file it finds 
-    using built-in readers.
-    
-    Returns:
-        List[Document]: A list of LlamaIndex Document objects.
-    """
-    
-    # Point to the data folder - auto-discovery of file types
+    # Point to a folder — it auto-detects and parses all supported files
     documents = SimpleDirectoryReader(
-        input_dir="./data"  # Path to your local document repository
+        input_dir="./data"       # Path to folder with your documents
     ).load_data()
     
-    print(f"📄 Successfully loaded {len(documents)} document(s)")
+    print(f"📄 Loaded {len(documents)} document(s)")
     
-    # Inspection of the loaded Document objects
+    # Inspect each document
     for i, doc in enumerate(documents):
-        print(f"\n[Document {i + 1}]")
-        print(f"  Preview (100 chars): {doc.text[:100].strip()}...")
-        print(f"  Metadata: {doc.metadata}")
-        print(f"  Unique Doc ID: {doc.doc_id}")
+        print(f"\n  Document {i + 1}:")
+        print(f"    Text preview: {doc.text[:100]}...")
+        print(f"    Metadata: {doc.metadata}")
+        print(f"    Doc ID: {doc.doc_id}")
     
     return documents
 
 
 def load_specific_files():
-    """
-    Demonstrates loading a targeted list of files rather than an entire directory.
-    Use this when you want precise control over which documents enter your index.
-    """
+    """Load only specific files by path."""
     
     documents = SimpleDirectoryReader(
         input_files=[
-            "./data/sample.txt",
-            # "./data/report.pdf",  # Add paths to your specific files here
+            "./data/report.pdf",
+            "./data/notes.txt",
         ]
     ).load_data()
     
-    print(f"📄 Loaded {len(documents)} specific files.")
+    print(f"📄 Loaded {len(documents)} specific file(s)")
     return documents
 
 
 def load_recursive():
-    """
-    Demonstrates recursive loading from nested subdirectories.
-    Perfect for large, organized documentation sets.
-    """
+    """Load files from nested subdirectories."""
     
     documents = SimpleDirectoryReader(
         input_dir="./data",
-        recursive=True  # Enables traversal into all sub-folders
+        recursive=True    # Descend into all subdirectories
     ).load_data()
     
-    print(f"📄 Recursively loaded {len(documents)} document(s) from directory tree.")
+    print(f"📄 Loaded {len(documents)} document(s) from nested dirs")
     return documents
 
 
 def load_with_filters():
-    """
-    Demonstrates filtering for specific file extensions.
-    Prevents the ingestion of unwanted file types (e.g., system files, images).
-    """
+    """Load only certain file types."""
     
     documents = SimpleDirectoryReader(
         input_dir="./data",
-        required_exts=[".pdf", ".txt"],  # Strict whitelist of extensions
+        required_exts=[".pdf", ".txt"],  # Only load PDF and TXT files
         recursive=True,
     ).load_data()
     
-    print(f"📄 Filtered loading complete: {len(documents)} documents found (PDF/TXT only).")
+    print(f"📄 Loaded {len(documents)} filtered document(s)")
     return documents
 
 
 def load_with_custom_metadata():
-    """
-    Demonstrates how to enrich Document objects with custom metadata 
-    immediately after loading. Metadata can be used later for filtering 
-    replies or adding context to the LLM.
-    """
+    """Add custom metadata to all loaded documents."""
     
-    documents = SimpleDirectoryReader(input_dir="./data").load_data()
+    # You can attach extra metadata to every loaded document
+    documents = SimpleDirectoryReader(
+        input_dir="./data"
+    ).load_data()
     
-    # Enriching each document with application-specific context
+    # Add custom metadata after loading
     for doc in documents:
-        doc.metadata["project_name"] = "Knowledge_Base_Alpha"
-        doc.metadata["ingestion_source"] = "local_filesystem"
-        doc.metadata["classification"] = "internal_use_only"
+        doc.metadata["project"] = "my_rag_app"
+        doc.metadata["version"] = "1.0"
     
-    print(f"📄 Enhanced {len(documents)} documents with custom metadata fields.")
+    print(f"📄 Loaded {len(documents)} document(s) with custom metadata")
     if documents:
-        print(f"   Sample Metadata: {documents[0].metadata}")
+        print(f"   Example metadata: {documents[0].metadata}")
     
     return documents
 
@@ -120,26 +97,26 @@ def load_with_custom_metadata():
 if __name__ == "__main__":
     import os
     
-    # --- SETUP: Ensure a data directory exists for the demonstration ---
+    # Create a sample data directory for testing
     os.makedirs("./data", exist_ok=True)
     
-    # Create a dummy file if none exists
+    # Create a sample text file
     sample_file = "./data/sample.txt"
     if not os.path.exists(sample_file):
         with open(sample_file, "w") as f:
-            f.write("LlamaIndex is the leading framework for building RAG applications.\n")
-            f.write("It bridges the gap between your custom data and Large Language Models.\n")
-            f.write("SimpleDirectoryReader is the entry point for most RAG pipelines.\n")
+            f.write("LlamaIndex is a framework for building RAG applications.\n")
+            f.write("It connects LLMs with your data sources.\n")
+            f.write("RAG stands for Retrieval Augmented Generation.\n")
     
-    # --- EXECUTION: Run the examples ---
+    # Run the examples
     print("=" * 60)
-    print("  LlamaIndex - SimpleDirectoryReader Implementation Guide")
+    print("  SimpleDirectoryReader — Loading Local Files")
     print("=" * 60)
     
-    load_from_directory()
+    docs = load_from_directory()
     
-    print("\n" + "-" * 60)
-    print("  Adding Custom Metadata at Ingestion")
-    print("-" * 60)
+    print("\n" + "=" * 60)
+    print("  With Custom Metadata")
+    print("=" * 60)
     
     load_with_custom_metadata()
