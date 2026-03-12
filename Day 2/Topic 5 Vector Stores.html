@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LlamaIndex — Topic 5: Vector Stores</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --surface: #13161e;
+      --border: #1e2330;
+      --accent: #f97316;
+      --accent2: #38bdf8;
+      --accent3: #4ade80;
+      --accent4: #a78bfa;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --code-bg: #0a0c10;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      padding: 40px 20px 80px;
+    }
+
+    .page-wrap { max-width: 900px; margin: 0 auto; }
+
+    .header {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      margin-bottom: 48px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tag {
+      background: var(--accent);
+      color: #fff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 4px;
+      white-space: nowrap;
+      margin-top: 6px;
+    }
+
+    .header-text h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1; }
+    .header-text p  { color: var(--muted); font-size: 14px; margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
+
+    /* Comparison grid at top */
+    .store-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 32px;
+    }
+
+    .store-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      transition: border-color 0.2s, transform 0.15s;
+      cursor: default;
+    }
+    .store-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+
+    .store-logo {
+      font-size: 22px;
+      margin-bottom: 8px;
+    }
+    .store-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .store-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 10px;
+      display: inline-block;
+      margin-bottom: 8px;
+    }
+    .t-cloud   { background: rgba(249,115,22,0.12); color: #fb923c; border: 1px solid rgba(249,115,22,0.25); }
+    .t-oss     { background: rgba(74,222,128,0.10); color: #4ade80; border: 1px solid rgba(74,222,128,0.25); }
+    .t-hybrid  { background: rgba(56,189,248,0.10); color: #38bdf8; border: 1px solid rgba(56,189,248,0.25); }
+    .t-local   { background: rgba(167,139,250,0.10); color: #a78bfa; border: 1px solid rgba(167,139,250,0.25); }
+
+    .store-desc {
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 24px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: var(--accent); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(249,115,22,0.1);
+      border: 1px solid rgba(249,115,22,0.2);
+      padding: 3px 8px;
+      border-radius: 4px;
+    }
+
+    .card-header h2 { font-size: 16px; font-weight: 700; }
+    .card-body { padding: 20px 24px; }
+    .card-body p { font-size: 14px; color: #94a3b8; line-height: 1.7; margin-bottom: 14px; }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      line-height: 1.7;
+      margin: 10px 0;
+    }
+
+    .kw  { color: #38bdf8; }
+    .fn  { color: #f97316; }
+    .str { color: #4ade80; }
+    .cm  { color: #475569; font-style: italic; }
+    .var { color: #e2e8f0; }
+    .nv  { color: #a78bfa; }
+
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+      margin-top: 4px;
+    }
+
+    .kv-grid {
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    .kv-key {
+      background: rgba(255,255,255,0.03);
+      padding: 10px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--accent);
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-val {
+      background: rgba(255,255,255,0.01);
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #94a3b8;
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-key:last-of-type, .kv-val:last-of-type { border-bottom: none; }
+
+    .note {
+      display: flex;
+      gap: 10px;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-top: 14px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .note-orange { background: rgba(249,115,22,0.07);  border: 1px solid rgba(249,115,22,0.2);  color: #fdba74; }
+    .note-green  { background: rgba(74,222,128,0.06);  border: 1px solid rgba(74,222,128,0.2);  color: #86efac; }
+    .note-blue   { background: rgba(56,189,248,0.07);  border: 1px solid rgba(56,189,248,0.2);  color: #7dd3fc; }
+    .note-purple { background: rgba(167,139,250,0.07); border: 1px solid rgba(167,139,250,0.2); color: #c4b5fd; }
+    .note span.icon { font-size: 16px; flex-shrink: 0; }
+
+    /* Two-col code layout */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin: 12px 0;
+    }
+    .col-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    /* Big comparison table */
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin: 12px 0;
+    }
+    .compare-table th {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      text-align: left;
+      padding: 10px 14px;
+      background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid var(--border);
+      color: var(--accent);
+    }
+    .compare-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      color: #94a3b8;
+      vertical-align: top;
+    }
+    .compare-table tr:last-child td { border-bottom: none; }
+    .compare-table tr:hover td { background: rgba(255,255,255,0.01); }
+
+    .badge {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 10px;
+      display: inline-block;
+    }
+    .b-cloud  { background: rgba(249,115,22,0.12); color: #fb923c; }
+    .b-oss    { background: rgba(74,222,128,0.10); color: #4ade80; }
+    .b-hybrid { background: rgba(56,189,248,0.10); color: #38bdf8; }
+    .b-local  { background: rgba(167,139,250,0.10); color: #a78bfa; }
+
+    .divider-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-align: center;
+      padding: 14px 0 10px;
+      border-top: 1px solid var(--border);
+      margin-top: 16px;
+    }
+
+    footer {
+      margin-top: 60px;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    footer span { color: var(--accent); }
+
+    @media(max-width:680px){
+      .store-grid { grid-template-columns: repeat(2,1fr); }
+      .two-col { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="tag">TOPIC 5 / 19</div>
+    <div class="header-text">
+      <h1>Vector Stores</h1>
+      <p>8 integrations · #19 → #26 · Production databases for embeddings</p>
+    </div>
+  </div>
+
+  <!-- QUICK GLANCE GRID -->
+  <div class="store-grid">
+    <div class="store-card">
+      <div class="store-logo">🌲</div>
+      <div class="store-name">Pinecone</div>
+      <span class="store-tag t-cloud">Cloud</span>
+      <div class="store-desc">Fully managed. Best for teams that want zero infra.</div>
+    </div>
+    <div class="store-card">
+      <div class="store-logo">🔷</div>
+      <div class="store-name">Qdrant</div>
+      <span class="store-tag t-oss">OSS / Cloud</span>
+      <div class="store-desc">Fast, rich filtering. Most popular OSS choice.</div>
+    </div>
+    <div class="store-card">
+      <div class="store-logo">🕸️</div>
+      <div class="store-name">Weaviate</div>
+      <span class="store-tag t-hybrid">Hybrid</span>
+      <div class="store-desc">Built-in hybrid search (BM25 + vector).</div>
+    </div>
+    <div class="store-card">
+      <div class="store-logo">🎨</div>
+      <div class="store-name">ChromaDB</div>
+      <span class="store-tag t-local">Local</span>
+      <div class="store-desc">Easiest local dev setup. No server needed.</div>
+    </div>
+    <div class="store-card">
+      <div class="store-logo">🏗️</div>
+      <div class="store-name">Milvus</div>
+      <span class="store-tag t-oss">OSS</span>
+      <div class="store-desc">Best for billion-scale vectors at high throughput.</div>
+    </div>
+    <div class="store-card">
+      <div class="store-logo">🍃</div>
+      <div class="store-name">MongoDB Atlas</div>
+      <span class="store-tag t-cloud">Cloud</span>
+      <div class="store-desc">If you already use MongoDB — vector built-in.</div>
+    </div>
+    <div class="store-card">
+      <div class="store-logo">🐘</div>
+      <div class="store-name">PGVector</div>
+      <span class="store-tag t-hybrid">SQL + Vector</span>
+      <div class="store-desc">Postgres extension. SQL + vector in one DB.</div>
+    </div>
+    <div class="store-card">
+      <div class="store-logo">⚡</div>
+      <div class="store-name">Redis</div>
+      <span class="store-tag t-hybrid">Cache + Vector</span>
+      <div class="store-desc">Ultra-low latency. Great when speed is critical.</div>
+    </div>
+  </div>
+
+
+  <!-- CARD 19 + 20 — Pinecone & Qdrant -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#19 · #20</span>
+      <h2>Pinecone &amp; Qdrant Integration</h2>
+    </div>
+    <div class="card-body">
+      <p>These are the two most commonly used production vector stores. Pinecone is fully managed (no infra). Qdrant is OSS with a cloud option, offering advanced filtering and payload storage.</p>
+
+      <div class="two-col">
+        <div>
+          <div class="col-label">🌲 Pinecone</div>
+          <pre style="margin:0;font-size:11.5px;"><span class="fn">pip install</span> <span class="str">llama-index-vector-stores-pinecone</span>
+
+<span class="kw">from</span> <span class="var">pinecone</span> <span class="kw">import</span> <span class="fn">Pinecone</span>
+<span class="kw">from</span> <span class="var">llama_index.vector_stores.pinecone</span> <span class="kw">import</span> <span class="fn">PineconeVectorStore</span>
+<span class="kw">from</span> <span class="var">llama_index.core</span> <span class="kw">import</span> <span class="fn">StorageContext</span>, <span class="fn">VectorStoreIndex</span>
+
+<span class="var">pc</span> = <span class="fn">Pinecone</span>(api_key=<span class="str">"YOUR_KEY"</span>)
+<span class="var">pc_index</span> = <span class="var">pc</span>.<span class="fn">Index</span>(<span class="str">"my-index"</span>)
+
+<span class="var">vector_store</span> = <span class="fn">PineconeVectorStore</span>(
+    pinecone_index=<span class="var">pc_index</span>
+)
+<span class="var">storage_ctx</span> = <span class="fn">StorageContext</span>.<span class="fn">from_defaults</span>(
+    vector_store=<span class="var">vector_store</span>
+)
+<span class="var">index</span> = <span class="fn">VectorStoreIndex</span>.<span class="fn">from_documents</span>(
+    <span class="var">documents</span>, storage_context=<span class="var">storage_ctx</span>
+)</pre>
+        </div>
+        <div>
+          <div class="col-label">🔷 Qdrant</div>
+          <pre style="margin:0;font-size:11.5px;"><span class="fn">pip install</span> <span class="str">llama-index-vector-stores-qdrant</span>
+
+<span class="kw">import</span> <span class="var">qdrant_client</span>
+<span class="kw">from</span> <span class="var">llama_index.vector_stores.qdrant</span> <span class="kw">import</span> <span class="fn">QdrantVectorStore</span>
+
+<span class="var">client</span> = <span class="var">qdrant_client</span>.<span class="fn">QdrantClient</span>(
+    url=<span class="str">"http://localhost:6333"</span>
+    <span class="cm"># or cloud: url="https://xxx.qdrant.io"</span>
+)
+<span class="var">vector_store</span> = <span class="fn">QdrantVectorStore</span>(
+    client=<span class="var">client</span>,
+    collection_name=<span class="str">"my_collection"</span>
+)
+<span class="var">storage_ctx</span> = <span class="fn">StorageContext</span>.<span class="fn">from_defaults</span>(
+    vector_store=<span class="var">vector_store</span>
+)
+<span class="var">index</span> = <span class="fn">VectorStoreIndex</span>.<span class="fn">from_documents</span>(
+    <span class="var">documents</span>, storage_context=<span class="var">storage_ctx</span>
+)</pre>
+        </div>
+      </div>
+
+      <div class="note note-green">
+        <span class="icon">✅</span>
+        <span>The pattern is always the same: <strong>create vector_store → wrap in StorageContext → pass to VectorStoreIndex</strong>. Only the import and client setup changes per store.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 21 + 22 — Weaviate & ChromaDB -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#21 · #22</span>
+      <h2>Weaviate &amp; ChromaDB Integration</h2>
+    </div>
+    <div class="card-body">
+      <p>Weaviate is great for production hybrid search (vector + BM25 built in). ChromaDB is the fastest way to get a persistent local vector store running — ideal for dev and small projects.</p>
+
+      <div class="two-col">
+        <div>
+          <div class="col-label">🕸️ Weaviate</div>
+          <pre style="margin:0;font-size:11.5px;"><span class="fn">pip install</span> <span class="str">llama-index-vector-stores-weaviate</span>
+
+<span class="kw">import</span> <span class="var">weaviate</span>
+<span class="kw">from</span> <span class="var">llama_index.vector_stores.weaviate</span> <span class="kw">import</span> <span class="fn">WeaviateVectorStore</span>
+
+<span class="var">client</span> = <span class="var">weaviate</span>.<span class="fn">connect_to_local</span>()
+
+<span class="var">vector_store</span> = <span class="fn">WeaviateVectorStore</span>(
+    weaviate_client=<span class="var">client</span>,
+    index_name=<span class="str">"MyDocuments"</span>
+)</pre>
+        </div>
+        <div>
+          <div class="col-label">🎨 ChromaDB</div>
+          <pre style="margin:0;font-size:11.5px;"><span class="fn">pip install</span> <span class="str">llama-index-vector-stores-chroma</span>
+
+<span class="kw">import</span> <span class="var">chromadb</span>
+<span class="kw">from</span> <span class="var">llama_index.vector_stores.chroma</span> <span class="kw">import</span> <span class="fn">ChromaVectorStore</span>
+
+<span class="cm"># Persistent local DB</span>
+<span class="var">chroma_client</span> = <span class="var">chromadb</span>.<span class="fn">PersistentClient</span>(
+    path=<span class="str">"./chroma_db"</span>
+)
+<span class="var">collection</span> = <span class="var">chroma_client</span>.<span class="fn">get_or_create_collection</span>(
+    <span class="str">"my_docs"</span>
+)
+<span class="var">vector_store</span> = <span class="fn">ChromaVectorStore</span>(
+    chroma_collection=<span class="var">collection</span>
+)</pre>
+        </div>
+      </div>
+
+      <div class="note note-blue">
+        <span class="icon">🔍</span>
+        <span>Weaviate's hybrid search combines keyword (BM25) + vector automatically — no extra config needed. Great if you can't predict whether queries are keyword or semantic.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 23–26 — Milvus, MongoDB, PGVector, Redis -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#23 · #24 · #25 · #26</span>
+      <h2>Milvus · MongoDB Atlas · PGVector · Redis</h2>
+    </div>
+    <div class="card-body">
+      <p>These four stores cover enterprise-scale, relational, and ultra-low latency use cases. Setup follows the same pattern — only the client differs.</p>
+
+      <div class="section-label">Milvus (billion-scale)</div>
+      <pre><span class="fn">pip install</span> <span class="str">llama-index-vector-stores-milvus</span>
+
+<span class="kw">from</span> <span class="var">llama_index.vector_stores.milvus</span> <span class="kw">import</span> <span class="fn">MilvusVectorStore</span>
+
+<span class="var">vector_store</span> = <span class="fn">MilvusVectorStore</span>(
+    uri=<span class="str">"http://localhost:19530"</span>,
+    collection_name=<span class="str">"my_collection"</span>,
+    dim=<span class="nv">1536</span>   <span class="cm"># must match your embedding dimension</span>
+)</pre>
+
+      <div class="section-label" style="margin-top:14px;">MongoDB Atlas Vector Search</div>
+      <pre><span class="fn">pip install</span> <span class="str">llama-index-vector-stores-mongodb</span>
+
+<span class="kw">from</span> <span class="var">llama_index.vector_stores.mongodb</span> <span class="kw">import</span> <span class="fn">MongoDBAtlasVectorSearch</span>
+<span class="kw">from</span> <span class="var">pymongo</span> <span class="kw">import</span> <span class="fn">MongoClient</span>
+
+<span class="var">client</span> = <span class="fn">MongoClient</span>(<span class="str">"mongodb+srv://..."</span>)
+<span class="var">vector_store</span> = <span class="fn">MongoDBAtlasVectorSearch</span>(
+    mongodb_client=<span class="var">client</span>,
+    db_name=<span class="str">"my_db"</span>,
+    collection_name=<span class="str">"embeddings"</span>,
+    index_name=<span class="str">"vector_index"</span>
+)</pre>
+
+      <div class="section-label" style="margin-top:14px;">PGVector — Postgres + vector</div>
+      <pre><span class="fn">pip install</span> <span class="str">llama-index-vector-stores-postgres</span>
+
+<span class="kw">from</span> <span class="var">llama_index.vector_stores.postgres</span> <span class="kw">import</span> <span class="fn">PGVectorStore</span>
+
+<span class="var">vector_store</span> = <span class="fn">PGVectorStore</span>.<span class="fn">from_params</span>(
+    host=<span class="str">"localhost"</span>, port=<span class="nv">5432</span>,
+    database=<span class="str">"mydb"</span>, user=<span class="str">"postgres"</span>, password=<span class="str">"..."</span>,
+    table_name=<span class="str">"embeddings"</span>, embed_dim=<span class="nv">1536</span>
+)</pre>
+
+      <div class="section-label" style="margin-top:14px;">Redis Vector Store</div>
+      <pre><span class="fn">pip install</span> <span class="str">llama-index-vector-stores-redis</span>
+
+<span class="kw">from</span> <span class="var">llama_index.vector_stores.redis</span> <span class="kw">import</span> <span class="fn">RedisVectorStore</span>
+<span class="kw">import</span> <span class="var">redis</span>
+
+<span class="var">redis_client</span> = <span class="var">redis</span>.<span class="fn">Redis</span>(host=<span class="str">"localhost"</span>, port=<span class="nv">6379</span>)
+<span class="var">vector_store</span> = <span class="fn">RedisVectorStore</span>(
+    redis_client=<span class="var">redis_client</span>,
+    index_name=<span class="str">"my_index"</span>,
+    index_prefix=<span class="str">"llama"</span>
+)</pre>
+
+      <div class="note note-purple">
+        <span class="icon">🏢</span>
+        <span>Use <strong>PGVector</strong> if you already have Postgres in your stack — avoids adding another service. Use <strong>Redis</strong> when query latency must be under 5ms.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- Comparison Table -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">REF</span>
+      <h2>When To Use Which Store</h2>
+    </div>
+    <div class="card-body">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>Store</th>
+            <th>Type</th>
+            <th>Best For</th>
+            <th>Avoid When</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Pinecone</strong></td>
+            <td><span class="badge b-cloud">Cloud</span></td>
+            <td>Fastest to production, no infra management</td>
+            <td>Cost-sensitive or data must stay on-prem</td>
+          </tr>
+          <tr>
+            <td><strong>Qdrant</strong></td>
+            <td><span class="badge b-oss">OSS</span></td>
+            <td>Rich metadata filtering, self-hosted control</td>
+            <td>Team has no DevOps capacity</td>
+          </tr>
+          <tr>
+            <td><strong>Weaviate</strong></td>
+            <td><span class="badge b-hybrid">Hybrid</span></td>
+            <td>Built-in hybrid search, GraphQL API</td>
+            <td>Simple pure-vector use case (overkill)</td>
+          </tr>
+          <tr>
+            <td><strong>ChromaDB</strong></td>
+            <td><span class="badge b-local">Local</span></td>
+            <td>Local dev, prototyping, small apps</td>
+            <td>Multi-node production deployments</td>
+          </tr>
+          <tr>
+            <td><strong>Milvus</strong></td>
+            <td><span class="badge b-oss">OSS</span></td>
+            <td>Billion+ vectors, high-throughput enterprise</td>
+            <td>Small teams, simple use cases</td>
+          </tr>
+          <tr>
+            <td><strong>MongoDB Atlas</strong></td>
+            <td><span class="badge b-cloud">Cloud</span></td>
+            <td>Already using MongoDB in your stack</td>
+            <td>Starting fresh with no MongoDB dependency</td>
+          </tr>
+          <tr>
+            <td><strong>PGVector</strong></td>
+            <td><span class="badge b-hybrid">SQL+Vec</span></td>
+            <td>Postgres already in use, SQL + vector queries</td>
+            <td>Very large scale (&gt;50M vectors)</td>
+          </tr>
+          <tr>
+            <td><strong>Redis</strong></td>
+            <td><span class="badge b-hybrid">Cache+Vec</span></td>
+            <td>Sub-5ms latency critical, ephemeral data</td>
+            <td>Data persistence is essential without AOF setup</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <footer>LlamaIndex Notes · <span>Topic 5 of 19</span> · Vector Stores (Production DBs)</footer>
+
+</div>
+</body>
+</html>
