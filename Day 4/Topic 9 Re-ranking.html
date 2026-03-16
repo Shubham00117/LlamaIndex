@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LlamaIndex — Topic 9: Re-ranking</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --surface: #13161e;
+      --border: #1e2330;
+      --accent: #e879f9;
+      --accent2: #38bdf8;
+      --accent3: #4ade80;
+      --accent4: #f97316;
+      --accent5: #fbbf24;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --code-bg: #0a0c10;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      padding: 40px 20px 80px;
+    }
+
+    .page-wrap { max-width: 900px; margin: 0 auto; }
+
+    .header {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      margin-bottom: 48px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tag {
+      background: var(--accent);
+      color: #0d0f14;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 4px;
+      white-space: nowrap;
+      margin-top: 6px;
+    }
+
+    .header-text h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1; }
+    .header-text p  { color: var(--muted); font-size: 14px; margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 24px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: var(--accent); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(232,121,249,0.1);
+      border: 1px solid rgba(232,121,249,0.22);
+      padding: 3px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .card-header h2 { font-size: 16px; font-weight: 700; }
+    .card-body { padding: 20px 24px; }
+    .card-body p { font-size: 14px; color: #94a3b8; line-height: 1.7; margin-bottom: 14px; }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      line-height: 1.7;
+      margin: 10px 0;
+    }
+
+    .kw  { color: #38bdf8; }
+    .fn  { color: #f97316; }
+    .str { color: #4ade80; }
+    .cm  { color: #475569; font-style: italic; }
+    .var { color: #e2e8f0; }
+    .nv  { color: #a78bfa; }
+
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+      margin-top: 4px;
+    }
+
+    .kv-grid {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    .kv-key {
+      background: rgba(255,255,255,0.03);
+      padding: 10px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--accent);
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-val {
+      background: rgba(255,255,255,0.01);
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #94a3b8;
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-key:last-of-type, .kv-val:last-of-type { border-bottom: none; }
+
+    .note {
+      display: flex;
+      gap: 10px;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-top: 14px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .note-pink   { background: rgba(232,121,249,0.07); border: 1px solid rgba(232,121,249,0.22); color: #f0abfc; }
+    .note-green  { background: rgba(74,222,128,0.06);  border: 1px solid rgba(74,222,128,0.2);   color: #86efac; }
+    .note-orange { background: rgba(249,115,22,0.07);  border: 1px solid rgba(249,115,22,0.2);   color: #fdba74; }
+    .note-blue   { background: rgba(56,189,248,0.07);  border: 1px solid rgba(56,189,248,0.2);   color: #7dd3fc; }
+    .note-yellow { background: rgba(251,191,36,0.07);  border: 1px solid rgba(251,191,36,0.22);  color: #fde68a; }
+    .note span.icon { font-size: 16px; flex-shrink: 0; }
+
+    /* Pipeline diagram */
+    .pipeline {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      margin: 16px 0;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+    }
+    .pipe-step {
+      flex: 1;
+      padding: 14px 12px;
+      text-align: center;
+      border-right: 1px solid var(--border);
+      position: relative;
+    }
+    .pipe-step:last-child { border-right: none; }
+    .pipe-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+    .pipe-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .pipe-sub { font-size: 11px; color: #64748b; }
+    .pipe-highlight { background: rgba(232,121,249,0.06); }
+
+    /* Reranker comparison cards */
+    .reranker-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 14px;
+      margin: 14px 0;
+    }
+    .re-card {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+    }
+    .re-card:hover { border-color: var(--accent); }
+    .re-head {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .re-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 10px;
+    }
+    .rt-api   { background: rgba(232,121,249,0.12); color: #e879f9; border: 1px solid rgba(232,121,249,0.3); }
+    .rt-local { background: rgba(74,222,128,0.10);  color: #4ade80; border: 1px solid rgba(74,222,128,0.25); }
+    .rt-llm   { background: rgba(251,191,36,0.10);  color: #fbbf24; border: 1px solid rgba(251,191,36,0.25); }
+    .rt-mmr   { background: rgba(56,189,248,0.10);  color: #38bdf8; border: 1px solid rgba(56,189,248,0.25); }
+    .re-desc  { font-size: 12px; color: #64748b; line-height: 1.5; margin-bottom: 10px; }
+
+    /* Before/after score viz */
+    .score-viz {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin: 14px 0;
+    }
+    .sv-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+    .sv-cols {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    .sv-col-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+    .sv-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+    }
+    .sv-rank {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      color: var(--muted);
+      width: 20px;
+      flex-shrink: 0;
+    }
+    .sv-label {
+      font-size: 12px;
+      color: #94a3b8;
+      flex: 1;
+    }
+    .sv-bar-wrap { width: 80px; background: rgba(255,255,255,0.04); border-radius: 3px; height: 12px; }
+    .sv-bar { height: 100%; border-radius: 3px; }
+
+    /* Compare table */
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin: 12px 0;
+    }
+    .compare-table th {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      text-align: left;
+      padding: 10px 14px;
+      background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid var(--border);
+      color: var(--accent);
+    }
+    .compare-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      color: #94a3b8;
+      vertical-align: top;
+    }
+    .compare-table tr:last-child td { border-bottom: none; }
+    .compare-table tr:hover td { background: rgba(255,255,255,0.01); }
+
+    footer {
+      margin-top: 60px;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    footer span { color: var(--accent); }
+
+    @media(max-width:680px){
+      .reranker-grid { grid-template-columns: 1fr; }
+      .sv-cols { grid-template-columns: 1fr; }
+      .pipeline { flex-direction: column; }
+      .pipe-step { border-right: none; border-bottom: 1px solid var(--border); }
+      .pipe-step:last-child { border-bottom: none; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="tag">TOPIC 9 / 19</div>
+    <div class="header-text">
+      <h1>Re-ranking</h1>
+      <p>4 subtopics · #53 → #56 · Critical for production quality</p>
+    </div>
+  </div>
+
+
+  <!-- WHY RERANKING -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">CONCEPT</span>
+      <h2>Why Re-ranking Matters</h2>
+    </div>
+    <div class="card-body">
+      <p>Vector similarity retrieves nodes that are <em>semantically close</em> to the query — but similarity ≠ relevance. A reranker is a second-pass model that scores (query, chunk) pairs directly, dramatically improving the quality of what gets sent to the LLM.</p>
+
+      <div class="pipeline">
+        <div class="pipe-step">
+          <div class="pipe-num">STEP 1</div>
+          <div class="pipe-title">Query</div>
+          <div class="pipe-sub">User question</div>
+        </div>
+        <div class="pipe-step">
+          <div class="pipe-num">STEP 2</div>
+          <div class="pipe-title">Retrieve</div>
+          <div class="pipe-sub">top_k=20 by vector sim</div>
+        </div>
+        <div class="pipe-step pipe-highlight">
+          <div class="pipe-num">STEP 3 ✦</div>
+          <div class="pipe-title" style="color:var(--accent);">Rerank</div>
+          <div class="pipe-sub">score each pair → top 3</div>
+        </div>
+        <div class="pipe-step">
+          <div class="pipe-num">STEP 4</div>
+          <div class="pipe-title">Synthesize</div>
+          <div class="pipe-sub">LLM generates answer</div>
+        </div>
+      </div>
+
+      <!-- Before / after -->
+      <div class="score-viz">
+        <div class="sv-title">Before vs After Reranking — same query, same 5 chunks</div>
+        <div class="sv-cols">
+          <div>
+            <div class="sv-col-title" style="color:#64748b;">❌ Vector similarity order</div>
+            <div class="sv-row">
+              <span class="sv-rank">#1</span>
+              <span class="sv-label">Tangentially related chunk</span>
+              <div class="sv-bar-wrap"><div class="sv-bar" style="width:90%;background:rgba(249,115,22,0.5);"></div></div>
+            </div>
+            <div class="sv-row">
+              <span class="sv-rank">#2</span>
+              <span class="sv-label">Partially relevant</span>
+              <div class="sv-bar-wrap"><div class="sv-bar" style="width:85%;background:rgba(249,115,22,0.4);"></div></div>
+            </div>
+            <div class="sv-row">
+              <span class="sv-rank">#3</span>
+              <span class="sv-label">🎯 Most relevant chunk</span>
+              <div class="sv-bar-wrap"><div class="sv-bar" style="width:80%;background:rgba(249,115,22,0.3);"></div></div>
+            </div>
+          </div>
+          <div>
+            <div class="sv-col-title" style="color:#4ade80;">✅ After reranking</div>
+            <div class="sv-row">
+              <span class="sv-rank">#1</span>
+              <span class="sv-label" style="color:#86efac;">🎯 Most relevant chunk</span>
+              <div class="sv-bar-wrap"><div class="sv-bar" style="width:97%;background:rgba(74,222,128,0.6);"></div></div>
+            </div>
+            <div class="sv-row">
+              <span class="sv-rank">#2</span>
+              <span class="sv-label">Partially relevant</span>
+              <div class="sv-bar-wrap"><div class="sv-bar" style="width:55%;background:rgba(74,222,128,0.3);"></div></div>
+            </div>
+            <div class="sv-row">
+              <span class="sv-rank">#3</span>
+              <span class="sv-label">Tangentially related</span>
+              <div class="sv-bar-wrap"><div class="sv-bar" style="width:22%;background:rgba(74,222,128,0.15);"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="note note-pink">
+        <span class="icon">🏆</span>
+        <span>Reranking is the <strong>single highest-impact improvement</strong> you can make to a RAG pipeline. It consistently boosts answer quality by 20–40% in evaluations. Always use one in production.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 53 — Cohere Reranker -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#53</span>
+      <h2>Cohere Reranker</h2>
+    </div>
+    <div class="card-body">
+      <p>Cohere's reranker is a cross-encoder model accessed via API. It's the easiest production reranker to set up — no GPU needed, just an API key. Excellent quality, especially for multilingual content.</p>
+
+      <div class="section-label">Setup &amp; usage</div>
+      <pre><span class="fn">pip install</span> <span class="str">llama-index-postprocessor-cohere-rerank</span>
+
+<span class="kw">from</span> <span class="var">llama_index.postprocessor.cohere_rerank</span> <span class="kw">import</span> <span class="fn">CohereRerank</span>
+<span class="kw">from</span> <span class="var">llama_index.core.query_engine</span> <span class="kw">import</span> <span class="fn">RetrieverQueryEngine</span>
+
+<span class="cm"># Create reranker</span>
+<span class="var">cohere_rerank</span> = <span class="fn">CohereRerank</span>(
+    api_key=<span class="str">"YOUR_COHERE_KEY"</span>,
+    top_n=<span class="nv">3</span>   <span class="cm"># return top 3 after reranking</span>
+)
+
+<span class="cm"># Retrieve more, rerank down to fewer</span>
+<span class="var">retriever</span> = <span class="var">index</span>.<span class="fn">as_retriever</span>(similarity_top_k=<span class="nv">20</span>)
+
+<span class="var">query_engine</span> = <span class="fn">RetrieverQueryEngine</span>(
+    retriever=<span class="var">retriever</span>,
+    node_postprocessors=[<span class="var">cohere_rerank</span>]   <span class="cm"># runs after retrieval</span>
+)
+
+<span class="var">response</span> = <span class="kw">await</span> <span class="var">query_engine</span>.<span class="fn">aquery</span>(<span class="str">"What are the key findings?"</span>)</pre>
+
+      <div class="kv-grid">
+        <div class="kv-key">rerank-english-v3.0</div>
+        <div class="kv-val">Best for English content. Highest quality Cohere reranker.</div>
+        <div class="kv-key">rerank-multilingual-v3.0</div>
+        <div class="kv-val">Supports 100+ languages. Use for international deployments.</div>
+        <div class="kv-key">rerank-english-v2.0</div>
+        <div class="kv-val">Older model. Avoid for new projects — v3 is strictly better.</div>
+      </div>
+
+      <div class="note note-pink">
+        <span class="icon">💡</span>
+        <span>The pattern: <strong>retrieve 15–20, rerank to top 3–5</strong>. The reranker is fast — the extra retrieval cost is worth the quality gain.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 54 — BGE Reranker -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#54</span>
+      <h2>BGE Reranker — Local (Free)</h2>
+    </div>
+    <div class="card-body">
+      <p>BGE (BAAI General Embedding) rerankers run locally via HuggingFace — zero API cost. Slightly slower than Cohere but competitive quality, especially <code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent)">bge-reranker-large</code>. Best for cost-sensitive or data-private setups.</p>
+
+      <div class="section-label">Setup &amp; usage</div>
+      <pre><span class="fn">pip install</span> <span class="str">llama-index-postprocessor-flag-embedding-reranker</span>
+
+<span class="kw">from</span> <span class="var">llama_index.postprocessor.flag_embedding_reranker</span> <span class="kw">import</span> <span class="fn">FlagEmbeddingReranker</span>
+
+<span class="cm"># Downloads model on first use (~1GB for large)</span>
+<span class="var">reranker</span> = <span class="fn">FlagEmbeddingReranker</span>(
+    model=<span class="str">"BAAI/bge-reranker-large"</span>,
+    top_n=<span class="nv">3</span>
+)
+
+<span class="var">query_engine</span> = <span class="fn">RetrieverQueryEngine</span>(
+    retriever=<span class="var">index</span>.<span class="fn">as_retriever</span>(similarity_top_k=<span class="nv">15</span>),
+    node_postprocessors=[<span class="var">reranker</span>]
+)</pre>
+
+      <div class="kv-grid">
+        <div class="kv-key">bge-reranker-base</div>
+        <div class="kv-val">~280MB · Fastest · Good for dev/testing</div>
+        <div class="kv-key">bge-reranker-large</div>
+        <div class="kv-val">~1.3GB · Best quality local reranker · Production default</div>
+        <div class="kv-key">bge-reranker-v2-m3</div>
+        <div class="kv-val">Multilingual, lightweight · Good Cohere alternative for multi-language</div>
+      </div>
+
+      <div class="note note-green">
+        <span class="icon">💰</span>
+        <span>BGE reranker has <strong>zero per-query cost</strong>. For 100K+ daily queries, it saves hundreds of dollars/month vs Cohere API. Requires GPU for good throughput.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 55 — LLM Reranker -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#55</span>
+      <h2>LLM-Based Reranking</h2>
+    </div>
+    <div class="card-body">
+      <p>Use an LLM itself to score relevance. Slower and more expensive than dedicated rerankers, but can understand nuanced domain-specific relevance that cross-encoders miss. Best for complex legal, medical, or technical content.</p>
+
+      <div class="section-label">LLM Rerank — built into LlamaIndex</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core.postprocessor</span> <span class="kw">import</span> <span class="fn">LLMRerank</span>
+
+<span class="var">llm_reranker</span> = <span class="fn">LLMRerank</span>(
+    choice_batch_size=<span class="nv">5</span>,   <span class="cm"># score 5 nodes per LLM call</span>
+    top_n=<span class="nv">3</span>               <span class="cm"># return top 3</span>
+)
+
+<span class="var">query_engine</span> = <span class="fn">RetrieverQueryEngine</span>(
+    retriever=<span class="var">index</span>.<span class="fn">as_retriever</span>(similarity_top_k=<span class="nv">10</span>),
+    node_postprocessors=[<span class="var">llm_reranker</span>]
+)</pre>
+
+      <div class="section-label" style="margin-top:14px;">How it works internally</div>
+      <pre><span class="cm"># LlamaIndex prompts the LLM with something like:</span>
+<span class="cm">#</span>
+<span class="cm"># Query: "What are the side effects of drug X?"</span>
+<span class="cm"># Passage 1: "Drug X is used for treating..."</span>
+<span class="cm"># Passage 2: "Side effects include nausea, headache..."</span>
+<span class="cm"># Passage 3: "The dosage of drug X is..."</span>
+<span class="cm">#</span>
+<span class="cm"># Which passages best answer the query? Rank them.</span>
+<span class="cm"># LLM returns: [2, 1, 3]</span></pre>
+
+      <div class="note note-yellow">
+        <span class="icon">⚠️</span>
+        <span>LLM reranking uses <strong>multiple LLM calls per query</strong> — can be 3–10× more expensive than Cohere rerank. Use it only when domain-specific nuance is critical and you've validated the cost.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 56 — MMR -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#56</span>
+      <h2>MMR — Maximum Marginal Relevance</h2>
+    </div>
+    <div class="card-body">
+      <p>Standard retrieval often returns very similar chunks — e.g. the same paragraph from 3 slightly different angles. MMR balances relevance with diversity: each new result must be both relevant to the query <em>and</em> different from already-selected results.</p>
+
+      <div class="section-label">The MMR formula (simplified)</div>
+      <pre><span class="cm"># MMR score = λ × relevance(doc, query)</span>
+<span class="cm">#           - (1-λ) × max_similarity(doc, already_selected)</span>
+<span class="cm">#</span>
+<span class="cm"># λ=1.0 → pure relevance (same as standard retrieval)</span>
+<span class="cm"># λ=0.0 → pure diversity</span>
+<span class="cm"># λ=0.5 → balanced (typical production value)</span></pre>
+
+      <div class="section-label" style="margin-top:14px;">Usage in LlamaIndex</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core.postprocessor</span> <span class="kw">import</span> <span class="fn">MMRNodePostprocessor</span>
+
+<span class="var">mmr_postprocessor</span> = <span class="fn">MMRNodePostprocessor</span>(
+    similarity_cutoff=<span class="nv">0.7</span>,   <span class="cm"># minimum relevance to include</span>
+    mmr_threshold=<span class="nv">0.5</span>        <span class="cm"># λ — balance relevance vs diversity</span>
+)
+
+<span class="var">query_engine</span> = <span class="fn">RetrieverQueryEngine</span>(
+    retriever=<span class="var">index</span>.<span class="fn">as_retriever</span>(similarity_top_k=<span class="nv">10</span>),
+    node_postprocessors=[<span class="var">mmr_postprocessor</span>]
+)</pre>
+
+      <div class="kv-grid">
+        <div class="kv-key">mmr_threshold = 0.7</div>
+        <div class="kv-val">Lean towards relevance. Use for precise factual Q&amp;A.</div>
+        <div class="kv-key">mmr_threshold = 0.5</div>
+        <div class="kv-val">Balanced default. Good for general research queries.</div>
+        <div class="kv-key">mmr_threshold = 0.3</div>
+        <div class="kv-val">Lean towards diversity. Use for broad topic exploration.</div>
+      </div>
+
+      <div class="note note-blue">
+        <span class="icon">🌈</span>
+        <span>Use MMR when responses feel <strong>repetitive</strong> or keep citing the same section of a document. It ensures the LLM gets diverse context to synthesize a richer answer.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- REFERENCE — All rerankers comparison -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">REF</span>
+      <h2>Reranker Comparison — Which to Use</h2>
+    </div>
+    <div class="card-body">
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>Reranker</th>
+            <th>Cost</th>
+            <th>Speed</th>
+            <th>Quality</th>
+            <th>Best For</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Cohere rerank-v3</strong></td>
+            <td>API pricing</td>
+            <td>~100ms</td>
+            <td>⭐⭐⭐⭐⭐</td>
+            <td>Production default, easy setup, multilingual</td>
+          </tr>
+          <tr>
+            <td><strong>BGE-reranker-large</strong></td>
+            <td>Free (local)</td>
+            <td>~200ms GPU</td>
+            <td>⭐⭐⭐⭐</td>
+            <td>Cost-saving, data privacy, high volume</td>
+          </tr>
+          <tr>
+            <td><strong>BGE-reranker-base</strong></td>
+            <td>Free (local)</td>
+            <td>~50ms GPU</td>
+            <td>⭐⭐⭐</td>
+            <td>Low latency local option, dev/testing</td>
+          </tr>
+          <tr>
+            <td><strong>LLM Rerank</strong></td>
+            <td>High (LLM calls)</td>
+            <td>1–3s</td>
+            <td>⭐⭐⭐⭐⭐</td>
+            <td>Complex domain-specific content, research</td>
+          </tr>
+          <tr>
+            <td><strong>MMR</strong></td>
+            <td>Free (math)</td>
+            <td>&lt;10ms</td>
+            <td>N/A (diversity)</td>
+            <td>Diverse context, exploration, broad queries</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="note note-pink">
+        <span class="icon">🚀</span>
+        <span><strong>Recommended production stack:</strong> Retrieve top-20 with Hybrid Search (Topic 8) → Rerank to top-5 with Cohere or BGE-large → Synthesize with LLM. This 3-step pipeline consistently outperforms any single-step approach.</span>
+      </div>
+    </div>
+  </div>
+
+  <footer>LlamaIndex Notes · <span>Topic 9 of 19</span> · Re-ranking</footer>
+
+</div>
+</body>
+</html>

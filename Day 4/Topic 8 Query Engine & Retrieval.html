@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LlamaIndex — Topic 8: Query Engine & Retrieval</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --surface: #13161e;
+      --border: #1e2330;
+      --accent: #22d3ee;
+      --accent2: #f97316;
+      --accent3: #4ade80;
+      --accent4: #a78bfa;
+      --accent5: #fb7185;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --code-bg: #0a0c10;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      padding: 40px 20px 80px;
+    }
+
+    .page-wrap { max-width: 920px; margin: 0 auto; }
+
+    .header {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      margin-bottom: 48px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tag {
+      background: var(--accent);
+      color: #0d0f14;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 4px;
+      white-space: nowrap;
+      margin-top: 6px;
+    }
+
+    .header-text h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1; }
+    .header-text p  { color: var(--muted); font-size: 14px; margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 24px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: var(--accent); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(34,211,238,0.1);
+      border: 1px solid rgba(34,211,238,0.22);
+      padding: 3px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .card-header h2 { font-size: 16px; font-weight: 700; }
+    .card-body { padding: 20px 24px; }
+    .card-body p { font-size: 14px; color: #94a3b8; line-height: 1.7; margin-bottom: 14px; }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      line-height: 1.7;
+      margin: 10px 0;
+    }
+
+    .kw  { color: #38bdf8; }
+    .fn  { color: #f97316; }
+    .str { color: #4ade80; }
+    .cm  { color: #475569; font-style: italic; }
+    .var { color: #e2e8f0; }
+    .nv  { color: #a78bfa; }
+
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+      margin-top: 4px;
+    }
+
+    .kv-grid {
+      display: grid;
+      grid-template-columns: 230px 1fr;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    .kv-key {
+      background: rgba(255,255,255,0.03);
+      padding: 10px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--accent);
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-val {
+      background: rgba(255,255,255,0.01);
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #94a3b8;
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-key:last-of-type, .kv-val:last-of-type { border-bottom: none; }
+
+    .note {
+      display: flex;
+      gap: 10px;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-top: 14px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .note-cyan   { background: rgba(34,211,238,0.07);  border: 1px solid rgba(34,211,238,0.22); color: #67e8f9; }
+    .note-green  { background: rgba(74,222,128,0.06);  border: 1px solid rgba(74,222,128,0.2);  color: #86efac; }
+    .note-orange { background: rgba(249,115,22,0.07);  border: 1px solid rgba(249,115,22,0.2);  color: #fdba74; }
+    .note-blue   { background: rgba(56,189,248,0.07);  border: 1px solid rgba(56,189,248,0.2);  color: #7dd3fc; }
+    .note-purple { background: rgba(167,139,250,0.07); border: 1px solid rgba(167,139,250,0.2); color: #c4b5fd; }
+    .note-pink   { background: rgba(251,113,133,0.07); border: 1px solid rgba(251,113,133,0.22);color: #fda4af; }
+    .note span.icon { font-size: 16px; flex-shrink: 0; }
+
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin: 12px 0;
+    }
+    .col-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    /* Retrieval strategy diagram */
+    .strategy-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 14px 0;
+    }
+    .strat-card {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+    }
+    .strat-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .strat-desc { font-size: 12px; color: #64748b; line-height: 1.5; }
+    .strat-tag {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 10px;
+      margin-bottom: 8px;
+    }
+
+    /* Flow diagram */
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin: 12px 0;
+    }
+    .flow-box {
+      border-radius: 8px;
+      padding: 7px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+    }
+    .fb-cyan   { background: rgba(34,211,238,0.1);  border: 1px solid rgba(34,211,238,0.25); color: #67e8f9; }
+    .fb-orange { background: rgba(249,115,22,0.1);  border: 1px solid rgba(249,115,22,0.25); color: #fb923c; }
+    .fb-green  { background: rgba(74,222,128,0.1);  border: 1px solid rgba(74,222,128,0.25); color: #86efac; }
+    .fb-purple { background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.25);color: #c4b5fd; }
+    .flow-arrow { color: var(--muted); font-size: 16px; }
+
+    /* Hybrid diagram */
+    .hybrid-diag {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr auto 1fr;
+      align-items: center;
+      gap: 10px;
+      margin: 14px 0;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+    }
+    .hd-box {
+      text-align: center;
+      padding: 12px 8px;
+      border-radius: 8px;
+    }
+    .hd-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .hd-sub { font-size: 11px; color: #64748b; }
+    .hd-arrow { text-align: center; color: var(--muted); font-size: 20px; }
+
+    footer {
+      margin-top: 60px;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    footer span { color: var(--accent); }
+
+    @media(max-width:680px){
+      .strategy-grid { grid-template-columns: repeat(2,1fr); }
+      .two-col { grid-template-columns: 1fr; }
+      .hybrid-diag { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="tag">TOPIC 8 / 19</div>
+    <div class="header-text">
+      <h1>Query Engine &amp; Retrieval</h1>
+      <p>12 subtopics · #41 → #52 · The core of every RAG system</p>
+    </div>
+  </div>
+
+
+  <!-- CARD 41 + 42 — Query Engine basics + streaming -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#41 · #42</span>
+      <h2>Query Engine — Basics &amp; Response Modes</h2>
+    </div>
+    <div class="card-body">
+      <p>The QueryEngine is the top-level interface that takes a question, retrieves relevant nodes, and synthesizes an answer using the LLM. It combines a <strong>Retriever</strong> + <strong>Response Synthesizer</strong> in one.</p>
+
+      <div class="section-label">Basic usage</div>
+      <pre><span class="cm"># Build query engine from index</span>
+<span class="var">query_engine</span> = <span class="var">index</span>.<span class="fn">as_query_engine</span>(
+    similarity_top_k=<span class="nv">5</span>,           <span class="cm"># retrieve top 5 nodes</span>
+    response_mode=<span class="str">"compact"</span>        <span class="cm"># response synthesis mode</span>
+)
+
+<span class="cm"># Sync query</span>
+<span class="var">response</span> = <span class="var">query_engine</span>.<span class="fn">query</span>(<span class="str">"What is RAG?"</span>)
+<span class="fn">print</span>(<span class="var">response</span>.<span class="fn">response</span>)          <span class="cm"># answer text</span>
+<span class="fn">print</span>(<span class="var">response</span>.<span class="fn">source_nodes</span>)      <span class="cm"># source chunks used</span>
+
+<span class="cm"># Async query (use in FastAPI)</span>
+<span class="var">response</span> = <span class="kw">await</span> <span class="var">query_engine</span>.<span class="fn">aquery</span>(<span class="str">"What is RAG?"</span>)</pre>
+
+      <div class="section-label" style="margin-top:14px;">Response modes explained</div>
+      <div class="kv-grid">
+        <div class="kv-key">compact</div>
+        <div class="kv-val">Default. Stuffs all retrieved nodes into one prompt. Fast &amp; cheap.</div>
+        <div class="kv-key">refine</div>
+        <div class="kv-val">Generates then refines answer iteratively over each node. Slower but thorough.</div>
+        <div class="kv-key">tree_summarize</div>
+        <div class="kv-val">Builds a tree of summaries. Best for large doc sets / summarization tasks.</div>
+        <div class="kv-key">simple_summarize</div>
+        <div class="kv-val">Single prompt with truncation. Use for quick summaries with context limits.</div>
+        <div class="kv-key">no_text</div>
+        <div class="kv-val">Returns retrieved nodes only — no LLM synthesis. Useful for debugging.</div>
+      </div>
+
+      <div class="section-label" style="margin-top:16px;">Streaming responses (#42)</div>
+      <pre><span class="cm"># Enable streaming</span>
+<span class="var">query_engine</span> = <span class="var">index</span>.<span class="fn">as_query_engine</span>(streaming=<span class="nv">True</span>)
+
+<span class="var">response</span> = <span class="var">query_engine</span>.<span class="fn">query</span>(<span class="str">"Summarize the document"</span>)
+
+<span class="cm"># Stream tokens as they arrive</span>
+<span class="var">response</span>.<span class="fn">print_response_stream</span>()
+
+<span class="cm"># Or iterate manually for FastAPI SSE</span>
+<span class="kw">for</span> <span class="var">token</span> <span class="kw">in</span> <span class="var">response</span>.<span class="fn">response_gen</span>:
+    <span class="fn">print</span>(<span class="var">token</span>, end=<span class="str">""</span>, flush=<span class="nv">True</span>)</pre>
+
+      <div class="note note-cyan">
+        <span class="icon">💡</span>
+        <span>Start with <strong>response_mode="compact"</strong> and <strong>top_k=3–5</strong>. Only increase if evaluation shows missing context. More nodes = more cost.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 43 + 44 — Metadata filtering + Top-k tuning -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#43 · #44</span>
+      <h2>Metadata Filtering &amp; Top-k Tuning</h2>
+    </div>
+    <div class="card-body">
+      <p>Metadata filters narrow retrieval to relevant subsets before vector search. Top-k and similarity thresholds control how many and how relevant nodes must be to be returned.</p>
+
+      <div class="section-label">Metadata filtering at query time</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core.vector_stores</span> <span class="kw">import</span> (
+    <span class="fn">MetadataFilter</span>, <span class="fn">MetadataFilters</span>, <span class="fn">FilterCondition</span>
+)
+
+<span class="var">filters</span> = <span class="fn">MetadataFilters</span>(
+    filters=[
+        <span class="fn">MetadataFilter</span>(key=<span class="str">"department"</span>, value=<span class="str">"engineering"</span>),
+        <span class="fn">MetadataFilter</span>(key=<span class="str">"year"</span>, value=<span class="nv">2024</span>),
+    ],
+    condition=<span class="fn">FilterCondition</span>.AND   <span class="cm"># AND or OR</span>
+)
+
+<span class="var">query_engine</span> = <span class="var">index</span>.<span class="fn">as_query_engine</span>(
+    filters=<span class="var">filters</span>,
+    similarity_top_k=<span class="nv">5</span>
+)</pre>
+
+      <div class="section-label" style="margin-top:14px;">Top-k and similarity threshold</div>
+      <pre><span class="cm"># Basic top-k — return 5 most similar nodes</span>
+<span class="var">retriever</span> = <span class="var">index</span>.<span class="fn">as_retriever</span>(similarity_top_k=<span class="nv">5</span>)
+
+<span class="cm"># With similarity cutoff — ignore low-quality matches</span>
+<span class="kw">from</span> <span class="var">llama_index.core.retrievers</span> <span class="kw">import</span> <span class="fn">VectorIndexRetriever</span>
+
+<span class="var">retriever</span> = <span class="fn">VectorIndexRetriever</span>(
+    index=<span class="var">index</span>,
+    similarity_top_k=<span class="nv">10</span>,
+    node_ids=<span class="nv">None</span>,
+)
+<span class="cm"># Then post-filter by score threshold manually</span>
+<span class="var">nodes</span> = [<span class="var">n</span> <span class="kw">for</span> <span class="var">n</span> <span class="kw">in</span> <span class="var">nodes</span> <span class="kw">if</span> <span class="var">n</span>.<span class="var">score</span> > <span class="nv">0.75</span>]</pre>
+
+      <div class="kv-grid">
+        <div class="kv-key">top_k = 3</div>
+        <div class="kv-val">Precise, less noise, lower cost. Use for factual Q&amp;A.</div>
+        <div class="kv-key">top_k = 5–10</div>
+        <div class="kv-val">Balanced. Good for most RAG use cases.</div>
+        <div class="kv-key">top_k = 20+</div>
+        <div class="kv-val">Use with reranker to reduce to top 3–5 after retrieval.</div>
+        <div class="kv-key">score threshold</div>
+        <div class="kv-val">0.7–0.8 is typical. Below 0.6 often means no relevant content found.</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 45 + 46 — BM25 + Hybrid Search -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#45 · #46</span>
+      <h2>BM25 Retriever &amp; Hybrid Search</h2>
+    </div>
+    <div class="card-body">
+      <p>Vector search excels at semantic queries but fails on exact keywords, product codes, and names. BM25 handles keywords well but misses semantic meaning. Hybrid combines both.</p>
+
+      <div class="hybrid-diag">
+        <div class="hd-box" style="background:rgba(34,211,238,0.08);border:1px solid rgba(34,211,238,0.2);">
+          <div class="hd-title" style="color:#67e8f9;">Vector Search</div>
+          <div class="hd-sub">Semantic similarity<br/>Dense retrieval</div>
+        </div>
+        <div class="hd-arrow">+</div>
+        <div class="hd-box" style="background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.2);">
+          <div class="hd-title" style="color:#fb923c;">BM25</div>
+          <div class="hd-sub">Keyword matching<br/>Sparse retrieval</div>
+        </div>
+        <div class="hd-arrow">→</div>
+        <div class="hd-box" style="background:rgba(74,222,128,0.08);border:1px solid rgba(74,222,128,0.2);">
+          <div class="hd-title" style="color:#86efac;">Hybrid Results</div>
+          <div class="hd-sub">Best of both<br/>RRF fusion</div>
+        </div>
+      </div>
+
+      <div class="section-label">BM25 Retriever</div>
+      <pre><span class="fn">pip install</span> <span class="str">llama-index-retrievers-bm25</span>
+
+<span class="kw">from</span> <span class="var">llama_index.retrievers.bm25</span> <span class="kw">import</span> <span class="fn">BM25Retriever</span>
+
+<span class="cm"># Build BM25 retriever from existing nodes</span>
+<span class="var">bm25_retriever</span> = <span class="fn">BM25Retriever</span>.<span class="fn">from_defaults</span>(
+    nodes=<span class="var">nodes</span>,
+    similarity_top_k=<span class="nv">5</span>
+)</pre>
+
+      <div class="section-label" style="margin-top:14px;">Hybrid Search — BM25 + Vector</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core.retrievers</span> <span class="kw">import</span> <span class="fn">QueryFusionRetriever</span>
+
+<span class="var">vector_retriever</span> = <span class="var">index</span>.<span class="fn">as_retriever</span>(similarity_top_k=<span class="nv">5</span>)
+<span class="var">bm25_retriever</span>  = <span class="fn">BM25Retriever</span>.<span class="fn">from_defaults</span>(nodes=<span class="var">nodes</span>, similarity_top_k=<span class="nv">5</span>)
+
+<span class="var">hybrid_retriever</span> = <span class="fn">QueryFusionRetriever</span>(
+    retrievers=[<span class="var">vector_retriever</span>, <span class="var">bm25_retriever</span>],
+    similarity_top_k=<span class="nv">5</span>,
+    num_queries=<span class="nv">1</span>,            <span class="cm"># don't generate extra queries</span>
+    mode=<span class="str">"reciprocal_rerank"</span>  <span class="cm"># RRF fusion</span>
+)</pre>
+
+      <div class="note note-green">
+        <span class="icon">✅</span>
+        <span>Hybrid search is the <strong>production default</strong> for most enterprise RAG. Always use it unless your queries are purely semantic with no exact-match needs.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 47 + 48 — Auto-Merging + Recursive Retriever -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#47 · #48</span>
+      <h2>Auto-Merging &amp; Recursive Retriever</h2>
+    </div>
+    <div class="card-body">
+      <p>Two of the most powerful production retrieval patterns. Both use parent-child chunk relationships to retrieve small precise chunks but return larger context to the LLM.</p>
+
+      <div class="two-col">
+        <div>
+          <div class="col-label">⬆️ Auto-Merging Retriever (#47)</div>
+          <p style="font-size:13px;color:#64748b;margin-bottom:8px;">Retrieve small leaf chunks → if enough leaf chunks from the same parent are retrieved → return the parent chunk instead. Avoids fragmented context.</p>
+          <pre style="margin:0;font-size:11.5px;"><span class="kw">from</span> <span class="var">llama_index.core.node_parser</span> <span class="kw">import</span> <span class="fn">HierarchicalNodeParser</span>
+<span class="kw">from</span> <span class="var">llama_index.core.retrievers</span> <span class="kw">import</span> <span class="fn">AutoMergingRetriever</span>
+<span class="kw">from</span> <span class="var">llama_index.core.storage.docstore</span> <span class="kw">import</span> <span class="fn">SimpleDocumentStore</span>
+
+<span class="cm"># 1. Create hierarchical nodes</span>
+<span class="var">parser</span> = <span class="fn">HierarchicalNodeParser</span>.<span class="fn">from_defaults</span>(
+    chunk_sizes=[<span class="nv">512</span>, <span class="nv">128</span>]
+)
+<span class="var">nodes</span> = <span class="var">parser</span>.<span class="fn">get_nodes_from_documents</span>(<span class="var">docs</span>)
+
+<span class="cm"># 2. Store ALL nodes (parent + leaf)</span>
+<span class="var">docstore</span> = <span class="fn">SimpleDocumentStore</span>()
+<span class="var">docstore</span>.<span class="fn">add_documents</span>(<span class="var">nodes</span>)
+
+<span class="cm"># 3. Index only leaf nodes</span>
+<span class="var">leaf_nodes</span> = [<span class="var">n</span> <span class="kw">for</span> <span class="var">n</span> <span class="kw">in</span> <span class="var">nodes</span> <span class="kw">if</span> <span class="fn">isinstance</span>(<span class="var">n</span>, <span class="fn">IndexNode</span>)]
+<span class="var">index</span> = <span class="fn">VectorStoreIndex</span>(<span class="var">leaf_nodes</span>)
+
+<span class="cm"># 4. Wrap with auto-merging retriever</span>
+<span class="var">base_retriever</span> = <span class="var">index</span>.<span class="fn">as_retriever</span>(similarity_top_k=<span class="nv">6</span>)
+<span class="var">retriever</span> = <span class="fn">AutoMergingRetriever</span>(
+    <span class="var">base_retriever</span>,
+    storage_context=<span class="var">storage_context</span>
+)</pre>
+        </div>
+        <div>
+          <div class="col-label">🔗 Recursive Retriever (#48)</div>
+          <p style="font-size:13px;color:#64748b;margin-bottom:8px;">Index small summary chunks → on retrieval, follow node references to load the full parent content. Good for structured docs with sections.</p>
+          <pre style="margin:0;font-size:11.5px;"><span class="kw">from</span> <span class="var">llama_index.core.retrievers</span> <span class="kw">import</span> <span class="fn">RecursiveRetriever</span>
+<span class="kw">from</span> <span class="var">llama_index.core.schema</span> <span class="kw">import</span> <span class="fn">IndexNode</span>
+
+<span class="cm"># Create child nodes that reference parents</span>
+<span class="var">index_nodes</span> = []
+<span class="kw">for</span> <span class="var">n</span> <span class="kw">in</span> <span class="var">nodes</span>:
+    <span class="var">index_node</span> = <span class="fn">IndexNode</span>(
+        text=<span class="var">n</span>.<span class="fn">get_content</span>(metadata_mode=<span class="str">"all"</span>)[:128],
+        index_id=<span class="var">n</span>.<span class="var">node_id</span>
+    )
+    <span class="var">index_nodes</span>.<span class="fn">append</span>(<span class="var">index_node</span>)
+
+<span class="cm"># Index the small summaries</span>
+<span class="var">index</span> = <span class="fn">VectorStoreIndex</span>(<span class="var">index_nodes</span>)
+
+<span class="cm"># Recursive retriever follows references</span>
+<span class="var">retriever</span> = <span class="fn">RecursiveRetriever</span>(
+    <span class="str">"vector"</span>,
+    retriever_dict={<span class="str">"vector"</span>: <span class="var">index</span>.<span class="fn">as_retriever</span>()},
+    node_dict={<span class="var">n</span>.<span class="var">node_id</span>: <span class="var">n</span> <span class="kw">for</span> <span class="var">n</span> <span class="kw">in</span> <span class="var">nodes</span>}
+)</pre>
+        </div>
+      </div>
+
+      <div class="note note-purple">
+        <span class="icon">🏆</span>
+        <span><strong>Auto-Merging Retriever</strong> is one of the highest-performing RAG patterns on benchmarks. Embed small → return large = precise retrieval + rich context for LLM.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 49 + 50 — Query Fusion + RRF -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#49 · #50</span>
+      <h2>Query Fusion &amp; Reciprocal Rerank Fusion</h2>
+    </div>
+    <div class="card-body">
+      <p>Query Fusion generates multiple variations of the user's query, retrieves for each, then merges results. This dramatically improves recall when a single query misses relevant content.</p>
+
+      <div class="section-label">Query Fusion Retriever (#49)</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core.retrievers</span> <span class="kw">import</span> <span class="fn">QueryFusionRetriever</span>
+
+<span class="var">retriever</span> = <span class="fn">QueryFusionRetriever</span>(
+    retrievers=[<span class="var">vector_retriever</span>],
+    similarity_top_k=<span class="nv">5</span>,
+    num_queries=<span class="nv">4</span>,         <span class="cm"># LLM generates 4 query variations</span>
+    mode=<span class="str">"reciprocal_rerank"</span>,
+    use_async=<span class="nv">True</span>,
+    verbose=<span class="nv">True</span>
+)
+<span class="cm"># User query: "What causes inflation?"</span>
+<span class="cm"># Generated: "factors leading to inflation", "inflation causes",</span>
+<span class="cm">#            "why does inflation happen", "monetary inflation drivers"</span></pre>
+
+      <div class="section-label" style="margin-top:14px;">Reciprocal Rerank Fusion (RRF) (#50)</div>
+      <pre><span class="cm"># RRF combines ranked lists from multiple retrievers</span>
+<span class="cm"># Each doc gets score: sum(1 / (rank + k)) across all lists</span>
+<span class="cm"># k=60 is the standard constant</span>
+
+<span class="var">retriever</span> = <span class="fn">QueryFusionRetriever</span>(
+    retrievers=[<span class="var">vector_retriever</span>, <span class="var">bm25_retriever</span>],
+    mode=<span class="str">"reciprocal_rerank"</span>,  <span class="cm"># RRF fusion mode</span>
+    similarity_top_k=<span class="nv">5</span>,
+    num_queries=<span class="nv">1</span>             <span class="cm"># no extra query gen — pure RRF</span>
+)</pre>
+
+      <div class="note note-cyan">
+        <span class="icon">🔄</span>
+        <span>RRF is <strong>fusion math, not ML</strong> — it's fast, deterministic, and doesn't require training. It consistently outperforms single-retriever setups in benchmarks.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 51 + 52 — Router + Auto-Retrieval -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#51 · #52</span>
+      <h2>Router Retriever &amp; Auto-Retrieval</h2>
+    </div>
+    <div class="card-body">
+      <p>These two patterns let the LLM itself decide <em>how</em> to retrieve — either routing to the right data source or automatically constructing the right metadata filter for the query.</p>
+
+      <div class="section-label">Router Retriever (#51) — route queries to the right index</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core.selectors</span> <span class="kw">import</span> <span class="fn">LLMSingleSelector</span>
+<span class="kw">from</span> <span class="var">llama_index.core.query_engine</span> <span class="kw">import</span> <span class="fn">RouterQueryEngine</span>
+<span class="kw">from</span> <span class="var">llama_index.core.tools</span> <span class="kw">import</span> <span class="fn">QueryEngineTool</span>
+
+<span class="cm"># Two separate indexes</span>
+<span class="var">finance_tool</span> = <span class="fn">QueryEngineTool</span>.<span class="fn">from_defaults</span>(
+    query_engine=<span class="var">finance_engine</span>,
+    description=<span class="str">"Use for questions about financial reports and earnings"</span>
+)
+<span class="var">hr_tool</span> = <span class="fn">QueryEngineTool</span>.<span class="fn">from_defaults</span>(
+    query_engine=<span class="var">hr_engine</span>,
+    description=<span class="str">"Use for HR policies, benefits and employee questions"</span>
+)
+
+<span class="cm"># LLM picks which engine to use</span>
+<span class="var">router_engine</span> = <span class="fn">RouterQueryEngine</span>(
+    selector=<span class="fn">LLMSingleSelector</span>.<span class="fn">from_defaults</span>(),
+    query_engine_tools=[<span class="var">finance_tool</span>, <span class="var">hr_tool</span>]
+)</pre>
+
+      <div class="section-label" style="margin-top:16px;">Auto-Retrieval (#52) — LLM builds the filter</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core.retrievers</span> <span class="kw">import</span> <span class="fn">VectorIndexAutoRetriever</span>
+<span class="kw">from</span> <span class="var">llama_index.core.vector_stores.types</span> <span class="kw">import</span> <span class="fn">MetadataInfo</span>, <span class="fn">VectorStoreInfo</span>
+
+<span class="cm"># Tell the LLM what metadata fields exist</span>
+<span class="var">vector_store_info</span> = <span class="fn">VectorStoreInfo</span>(
+    content_info=<span class="str">"Company documents and reports"</span>,
+    metadata_info=[
+        <span class="fn">MetadataInfo</span>(name=<span class="str">"department"</span>, type=<span class="str">"str"</span>, description=<span class="str">"Department name"</span>),
+        <span class="fn">MetadataInfo</span>(name=<span class="str">"year"</span>,       type=<span class="str">"int"</span>, description=<span class="str">"Year of document"</span>),
+    ]
+)
+
+<span class="var">retriever</span> = <span class="fn">VectorIndexAutoRetriever</span>(
+    index=<span class="var">index</span>,
+    vector_store_info=<span class="var">vector_store_info</span>
+)
+<span class="cm"># Query: "Show me 2024 finance reports"</span>
+<span class="cm"># LLM auto-builds: filter={department:"finance", year:2024}</span></pre>
+
+      <div class="note note-orange">
+        <span class="icon">🤖</span>
+        <span><strong>Auto-Retrieval</strong> is powerful but uses extra LLM calls per query. Use <strong>Router Retriever</strong> when you have clearly separated domains (HR vs Finance vs Legal).</span>
+      </div>
+
+      <div class="section-label" style="margin-top:16px;">Retrieval strategy decision guide</div>
+      <div class="strategy-grid">
+        <div class="strat-card">
+          <span class="strat-tag" style="background:rgba(34,211,238,0.1);color:#67e8f9;border:1px solid rgba(34,211,238,0.25);">Default</span>
+          <div class="strat-name">Vector + Reranker</div>
+          <div class="strat-desc">Start here. Fast, simple, works for 80% of use cases.</div>
+        </div>
+        <div class="strat-card">
+          <span class="strat-tag" style="background:rgba(74,222,128,0.1);color:#86efac;border:1px solid rgba(74,222,128,0.25);">Production+</span>
+          <div class="strat-name">Hybrid Search</div>
+          <div class="strat-desc">BM25 + Vector. Use when queries mix keywords and semantics.</div>
+        </div>
+        <div class="strat-card">
+          <span class="strat-tag" style="background:rgba(167,139,250,0.1);color:#c4b5fd;border:1px solid rgba(167,139,250,0.25);">Best Quality</span>
+          <div class="strat-name">Auto-Merging</div>
+          <div class="strat-desc">Small embed → big return. Best accuracy, more complex setup.</div>
+        </div>
+        <div class="strat-card">
+          <span class="strat-tag" style="background:rgba(249,115,22,0.1);color:#fb923c;border:1px solid rgba(249,115,22,0.25);">Multi-Domain</span>
+          <div class="strat-name">Router Retriever</div>
+          <div class="strat-desc">Multiple indexes for different departments or data types.</div>
+        </div>
+        <div class="strat-card">
+          <span class="strat-tag" style="background:rgba(251,113,133,0.1);color:#fda4af;border:1px solid rgba(251,113,133,0.25);">Smart Filter</span>
+          <div class="strat-name">Auto-Retrieval</div>
+          <div class="strat-desc">LLM builds filters. Great when metadata structure is complex.</div>
+        </div>
+        <div class="strat-card">
+          <span class="strat-tag" style="background:rgba(56,189,248,0.1);color:#7dd3fc;border:1px solid rgba(56,189,248,0.25);">Max Recall</span>
+          <div class="strat-name">Query Fusion</div>
+          <div class="strat-desc">Multiple query variations merged with RRF. Best recall.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>LlamaIndex Notes · <span>Topic 8 of 19</span> · Query Engine &amp; Retrieval</footer>
+
+</div>
+</body>
+</html>
