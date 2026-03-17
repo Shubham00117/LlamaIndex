@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LlamaIndex — Topic 11: Structured Output & Data Extraction</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --surface: #13161e;
+      --border: #1e2330;
+      --accent: #f59e0b;
+      --accent2: #38bdf8;
+      --accent3: #4ade80;
+      --accent4: #a78bfa;
+      --accent5: #fb7185;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --code-bg: #0a0c10;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      padding: 40px 20px 80px;
+    }
+
+    .page-wrap { max-width: 900px; margin: 0 auto; }
+
+    .header {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      margin-bottom: 48px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tag {
+      background: var(--accent);
+      color: #0d0f14;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 4px;
+      white-space: nowrap;
+      margin-top: 6px;
+    }
+
+    .header-text h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1; }
+    .header-text p  { color: var(--muted); font-size: 14px; margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 24px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: var(--accent); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(245,158,11,0.1);
+      border: 1px solid rgba(245,158,11,0.22);
+      padding: 3px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .card-header h2 { font-size: 16px; font-weight: 700; }
+    .card-body { padding: 20px 24px; }
+    .card-body p { font-size: 14px; color: #94a3b8; line-height: 1.7; margin-bottom: 14px; }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      line-height: 1.7;
+      margin: 10px 0;
+    }
+
+    .kw  { color: #38bdf8; }
+    .fn  { color: #f97316; }
+    .str { color: #4ade80; }
+    .cm  { color: #475569; font-style: italic; }
+    .var { color: #e2e8f0; }
+    .nv  { color: #a78bfa; }
+
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+      margin-top: 4px;
+    }
+
+    .kv-grid {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    .kv-key {
+      background: rgba(255,255,255,0.03);
+      padding: 10px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--accent);
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-val {
+      background: rgba(255,255,255,0.01);
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #94a3b8;
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-key:last-of-type, .kv-val:last-of-type { border-bottom: none; }
+
+    .note {
+      display: flex;
+      gap: 10px;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-top: 14px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .note-amber  { background: rgba(245,158,11,0.07); border: 1px solid rgba(245,158,11,0.22); color: #fcd34d; }
+    .note-green  { background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2);  color: #86efac; }
+    .note-orange { background: rgba(249,115,22,0.07); border: 1px solid rgba(249,115,22,0.2);  color: #fdba74; }
+    .note-blue   { background: rgba(56,189,248,0.07); border: 1px solid rgba(56,189,248,0.2);  color: #7dd3fc; }
+    .note-purple { background: rgba(167,139,250,0.07);border: 1px solid rgba(167,139,250,0.2); color: #c4b5fd; }
+    .note-pink   { background: rgba(251,113,133,0.07);border: 1px solid rgba(251,113,133,0.22);color: #fda4af; }
+    .note span.icon { font-size: 16px; flex-shrink: 0; }
+
+    /* JSON output mockup */
+    .json-demo {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      line-height: 1.7;
+      margin: 10px 0;
+    }
+    .j-key    { color: #38bdf8; }
+    .j-str    { color: #4ade80; }
+    .j-num    { color: #a78bfa; }
+    .j-bool   { color: #f97316; }
+    .j-brace  { color: #94a3b8; }
+
+    /* Flow diagram */
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin: 12px 0;
+    }
+    .flow-box {
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+    }
+    .fb-amber  { background: rgba(245,158,11,0.1);  border: 1px solid rgba(245,158,11,0.25);  color: #fcd34d; }
+    .fb-blue   { background: rgba(56,189,248,0.1);  border: 1px solid rgba(56,189,248,0.25);  color: #7dd3fc; }
+    .fb-green  { background: rgba(74,222,128,0.1);  border: 1px solid rgba(74,222,128,0.25);  color: #86efac; }
+    .fb-purple { background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.25); color: #c4b5fd; }
+    .flow-arrow { color: var(--muted); font-size: 16px; }
+
+    /* Two-col */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin: 12px 0;
+    }
+    .col-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    /* Schema viz */
+    .schema-card {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      margin: 12px 0;
+    }
+    .sc-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--accent);
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sc-field {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(30,35,48,0.5);
+      font-size: 13px;
+    }
+    .sc-field:last-child { border-bottom: none; }
+    .sc-name { font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #38bdf8; width: 120px; flex-shrink: 0; }
+    .sc-type { font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 1px 7px; border-radius: 4px; }
+    .sct-str  { background: rgba(74,222,128,0.1); color: #4ade80; border: 1px solid rgba(74,222,128,0.2); }
+    .sct-int  { background: rgba(167,139,250,0.1); color: #a78bfa; border: 1px solid rgba(167,139,250,0.2); }
+    .sct-list { background: rgba(56,189,248,0.1); color: #38bdf8; border: 1px solid rgba(56,189,248,0.2); }
+    .sct-bool { background: rgba(249,115,22,0.1); color: #fb923c; border: 1px solid rgba(249,115,22,0.2); }
+    .sc-desc { font-size: 12px; color: #64748b; }
+
+    footer {
+      margin-top: 60px;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    footer span { color: var(--accent); }
+
+    @media(max-width:680px){ .two-col { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="tag">TOPIC 11 / 19</div>
+    <div class="header-text">
+      <h1>Structured Output &amp; Data Extraction</h1>
+      <p>6 subtopics · #61 → #66 · Turn unstructured docs into structured data</p>
+    </div>
+  </div>
+
+
+  <!-- CARD 61 — Pydantic structured output -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#61</span>
+      <h2>Pydantic-Based Structured Output from LLMs</h2>
+    </div>
+    <div class="card-body">
+      <p>Force LLMs to return valid, typed JSON matching a Pydantic schema. The LLM can't return free text — it must populate your schema fields. Eliminates all parsing headaches.</p>
+
+      <div class="section-label">Define schema → extract → get typed object</div>
+      <pre><span class="kw">from</span> <span class="var">pydantic</span> <span class="kw">import</span> <span class="fn">BaseModel</span>, <span class="fn">Field</span>
+<span class="kw">from</span> <span class="var">typing</span> <span class="kw">import</span> <span class="fn">List</span>, <span class="fn">Optional</span>
+<span class="kw">from</span> <span class="var">llama_index.core.program</span> <span class="kw">import</span> <span class="fn">LLMTextCompletionProgram</span>
+<span class="kw">from</span> <span class="var">llama_index.core.output_parsers</span> <span class="kw">import</span> <span class="fn">PydanticOutputParser</span>
+
+<span class="cm"># 1. Define your schema</span>
+<span class="kw">class</span> <span class="fn">Invoice</span>(<span class="fn">BaseModel</span>):
+    vendor_name:  <span class="var">str</span>           = <span class="fn">Field</span>(description=<span class="str">"Name of the vendor"</span>)
+    invoice_date: <span class="var">str</span>           = <span class="fn">Field</span>(description=<span class="str">"Invoice date (YYYY-MM-DD)"</span>)
+    total_amount: <span class="var">float</span>         = <span class="fn">Field</span>(description=<span class="str">"Total amount due"</span>)
+    line_items:   <span class="fn">List</span>[<span class="var">str</span>]    = <span class="fn">Field</span>(description=<span class="str">"List of line item descriptions"</span>)
+    is_paid:      <span class="var">bool</span>          = <span class="fn">Field</span>(description=<span class="str">"Whether invoice has been paid"</span>)
+
+<span class="cm"># 2. Create extraction program</span>
+<span class="var">program</span> = <span class="fn">LLMTextCompletionProgram</span>.<span class="fn">from_defaults</span>(
+    output_cls=<span class="fn">Invoice</span>,
+    prompt_template_str=<span class="str">"Extract invoice data from the following text:\n\n{text}"</span>,
+    verbose=<span class="nv">True</span>
+)
+
+<span class="cm"># 3. Run extraction — returns typed Invoice object</span>
+<span class="var">invoice</span>: <span class="fn">Invoice</span> = <span class="var">program</span>(text=<span class="var">raw_invoice_text</span>)
+<span class="fn">print</span>(<span class="var">invoice</span>.<span class="var">vendor_name</span>)    <span class="cm"># "Acme Corp"</span>
+<span class="fn">print</span>(<span class="var">invoice</span>.<span class="var">total_amount</span>)   <span class="cm"># 4250.00 (float)</span></pre>
+
+      <div class="section-label" style="margin-top:14px;">Schema → Output visualization</div>
+      <div class="two-col">
+        <div>
+          <div class="schema-card">
+            <div class="sc-title">Invoice Schema</div>
+            <div class="sc-field">
+              <span class="sc-name">vendor_name</span>
+              <span class="sc-type sct-str">str</span>
+            </div>
+            <div class="sc-field">
+              <span class="sc-name">invoice_date</span>
+              <span class="sc-type sct-str">str</span>
+            </div>
+            <div class="sc-field">
+              <span class="sc-name">total_amount</span>
+              <span class="sc-type sct-int">float</span>
+            </div>
+            <div class="sc-field">
+              <span class="sc-name">line_items</span>
+              <span class="sc-type sct-list">List[str]</span>
+            </div>
+            <div class="sc-field">
+              <span class="sc-name">is_paid</span>
+              <span class="sc-type sct-bool">bool</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="json-demo">
+<span class="j-brace">{</span>
+  <span class="j-key">"vendor_name"</span>:  <span class="j-str">"Acme Corp"</span>,
+  <span class="j-key">"invoice_date"</span>: <span class="j-str">"2024-03-15"</span>,
+  <span class="j-key">"total_amount"</span>: <span class="j-num">4250.00</span>,
+  <span class="j-key">"line_items"</span>: <span class="j-brace">[</span>
+    <span class="j-str">"Software license"</span>,
+    <span class="j-str">"Support fee"</span>
+  <span class="j-brace">]</span>,
+  <span class="j-key">"is_paid"</span>: <span class="j-bool">false</span>
+<span class="j-brace">}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="note note-amber">
+        <span class="icon">✅</span>
+        <span>Always add <strong>Field(description=...)</strong> to every field. The LLM uses these descriptions to understand what to extract — without them, extraction quality drops significantly.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 62 — Structured Prediction -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#62</span>
+      <h2>Structured Prediction — Extracting Schemas from Documents</h2>
+    </div>
+    <div class="card-body">
+      <p>Use <code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent)">structured_predict</code> directly on an LLM instance to extract structured data from any text in a clean one-liner pattern.</p>
+
+      <div class="section-label">Using llm.structured_predict()</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.llms.openai</span> <span class="kw">import</span> <span class="fn">OpenAI</span>
+<span class="kw">from</span> <span class="var">llama_index.core.prompts</span> <span class="kw">import</span> <span class="fn">PromptTemplate</span>
+<span class="kw">from</span> <span class="var">pydantic</span> <span class="kw">import</span> <span class="fn">BaseModel</span>
+
+<span class="kw">class</span> <span class="fn">ResearchPaper</span>(<span class="fn">BaseModel</span>):
+    title:    <span class="var">str</span>
+    authors:  <span class="fn">List</span>[<span class="var">str</span>]
+    year:     <span class="var">int</span>
+    abstract: <span class="var">str</span>
+    keywords: <span class="fn">List</span>[<span class="var">str</span>]
+
+<span class="var">llm</span> = <span class="fn">OpenAI</span>(model=<span class="str">"gpt-4o"</span>)
+
+<span class="var">prompt</span> = <span class="fn">PromptTemplate</span>(<span class="str">"Extract structured info from:\n\n{paper_text}"</span>)
+
+<span class="cm"># Clean one-liner extraction</span>
+<span class="var">paper</span>: <span class="fn">ResearchPaper</span> = <span class="var">llm</span>.<span class="fn">structured_predict</span>(
+    <span class="fn">ResearchPaper</span>,
+    <span class="var">prompt</span>,
+    paper_text=<span class="var">raw_pdf_text</span>
+)
+
+<span class="cm"># Async version</span>
+<span class="var">paper</span> = <span class="kw">await</span> <span class="var">llm</span>.<span class="fn">astructured_predict</span>(<span class="fn">ResearchPaper</span>, <span class="var">prompt</span>, paper_text=<span class="var">raw_pdf_text</span>)</pre>
+
+      <div class="note note-green">
+        <span class="icon">💡</span>
+        <span><code style="font-family:'JetBrains Mono',monospace;font-size:11px;">llm.structured_predict()</code> uses OpenAI function calling / tool use under the hood — it's more reliable than prompting for JSON and then parsing it manually.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 63 — LlamaExtract -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#63</span>
+      <h2>LlamaExtract — Automated Schema-Based Extraction</h2>
+    </div>
+    <div class="card-body">
+      <p>LlamaExtract is a LlamaCloud API service for extracting structured data from documents at scale. You define a schema once, then extract from hundreds of PDFs without writing any pipeline code.</p>
+
+      <div class="section-label">Flow</div>
+      <div class="flow">
+        <div class="flow-box fb-amber">Define Schema</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-box fb-blue">Upload PDFs</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-box fb-purple">LlamaExtract API</div>
+        <span class="flow-arrow">→</span>
+        <div class="flow-box fb-green">Structured JSON</div>
+      </div>
+
+      <div class="section-label">Usage</div>
+      <pre><span class="fn">pip install</span> <span class="str">llama-extract</span>
+
+<span class="kw">from</span> <span class="var">llama_extract</span> <span class="kw">import</span> <span class="fn">LlamaExtract</span>
+
+<span class="var">extractor</span> = <span class="fn">LlamaExtract</span>(api_key=<span class="str">"YOUR_LLAMA_CLOUD_KEY"</span>)
+
+<span class="cm"># Define extraction schema</span>
+<span class="kw">class</span> <span class="fn">ContractData</span>(<span class="fn">BaseModel</span>):
+    parties:         <span class="fn">List</span>[<span class="var">str</span>]
+    effective_date:  <span class="var">str</span>
+    expiry_date:     <span class="fn">Optional</span>[<span class="var">str</span>]
+    contract_value:  <span class="fn">Optional</span>[<span class="var">float</span>]
+    governing_law:   <span class="var">str</span>
+
+<span class="cm"># Create extractor agent with schema</span>
+<span class="var">agent</span> = <span class="kw">await</span> <span class="var">extractor</span>.<span class="fn">acreate_agent</span>(
+    name=<span class="str">"contract-extractor"</span>,
+    data_schema=<span class="fn">ContractData</span>
+)
+
+<span class="cm"># Extract from multiple files</span>
+<span class="var">results</span> = <span class="kw">await</span> <span class="var">agent</span>.<span class="fn">aextract</span>([
+    <span class="str">"contract_a.pdf"</span>,
+    <span class="str">"contract_b.pdf"</span>,
+    <span class="str">"contract_c.pdf"</span>
+])
+
+<span class="kw">for</span> <span class="var">r</span> <span class="kw">in</span> <span class="var">results</span>:
+    <span class="fn">print</span>(<span class="var">r</span>.<span class="var">data</span>)   <span class="cm"># typed ContractData object</span></pre>
+
+      <div class="note note-orange">
+        <span class="icon">⚡</span>
+        <span>LlamaExtract handles document parsing, chunking, and extraction automatically. Use it when you need to process <strong>many documents at scale</strong> without managing the full pipeline yourself.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 64 — Text-to-SQL -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#64</span>
+      <h2>Text-to-SQL — Natural Language Over Databases</h2>
+    </div>
+    <div class="card-body">
+      <p>Let users query SQL databases in plain English. LlamaIndex generates the SQL query, executes it, and returns a natural language answer — no SQL knowledge required from the user.</p>
+
+      <div class="section-label">Setup with SQLDatabase</div>
+      <pre><span class="kw">from</span> <span class="var">sqlalchemy</span> <span class="kw">import</span> <span class="fn">create_engine</span>
+<span class="kw">from</span> <span class="var">llama_index.core</span> <span class="kw">import</span> <span class="fn">SQLDatabase</span>
+<span class="kw">from</span> <span class="var">llama_index.core.query_engine</span> <span class="kw">import</span> <span class="fn">NLSQLTableQueryEngine</span>
+
+<span class="cm"># Connect to any SQLAlchemy-compatible DB</span>
+<span class="var">engine</span> = <span class="fn">create_engine</span>(<span class="str">"postgresql://user:pass@localhost/mydb"</span>)
+<span class="var">sql_db</span> = <span class="fn">SQLDatabase</span>(<span class="var">engine</span>, include_tables=[<span class="str">"orders"</span>, <span class="str">"customers"</span>])
+
+<span class="cm"># Create text-to-SQL query engine</span>
+<span class="var">query_engine</span> = <span class="fn">NLSQLTableQueryEngine</span>(
+    sql_database=<span class="var">sql_db</span>,
+    tables=[<span class="str">"orders"</span>, <span class="str">"customers"</span>]
+)
+
+<span class="cm"># User queries in plain English</span>
+<span class="var">response</span> = <span class="kw">await</span> <span class="var">query_engine</span>.<span class="fn">aquery</span>(
+    <span class="str">"What were the top 5 customers by revenue last month?"</span>
+)
+<span class="fn">print</span>(<span class="var">response</span>)
+<span class="cm"># Shows answer + the SQL it generated:</span>
+<span class="cm"># SELECT c.name, SUM(o.amount) as revenue</span>
+<span class="cm"># FROM orders o JOIN customers c ON o.customer_id = c.id</span>
+<span class="cm"># WHERE o.date >= DATE_TRUNC('month', CURRENT_DATE - INTERVAL '1 month')...</span></pre>
+
+      <div class="kv-grid">
+        <div class="kv-key">NLSQLTableQueryEngine</div>
+        <div class="kv-val">Simpler setup. Good when table selection is static/known upfront.</div>
+        <div class="kv-key">SQLTableRetrieverQueryEngine</div>
+        <div class="kv-val">LLM selects which tables to query. Better for large schemas with many tables.</div>
+      </div>
+
+      <div class="note note-pink">
+        <span class="icon">⚠️</span>
+        <span>Always use a <strong>read-only database user</strong> for text-to-SQL. The LLM could theoretically generate destructive queries — never expose write access.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 65 + 66 — CSV queries + Tables/Charts -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#65 · #66</span>
+      <h2>Querying CSVs &amp; Parsing Tables from Documents</h2>
+    </div>
+    <div class="card-body">
+      <p>Two common extraction patterns: natural language queries over CSV data, and extracting tables and charts from PDFs into usable structured formats.</p>
+
+      <div class="section-label">Natural language over CSV files (#65)</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.experimental.query_engine.pandas</span> <span class="kw">import</span> <span class="fn">PandasQueryEngine</span>
+<span class="kw">import</span> <span class="var">pandas</span> <span class="kw">as</span> <span class="var">pd</span>
+
+<span class="var">df</span> = <span class="var">pd</span>.<span class="fn">read_csv</span>(<span class="str">"sales_data.csv"</span>)
+
+<span class="var">query_engine</span> = <span class="fn">PandasQueryEngine</span>(
+    df=<span class="var">df</span>,
+    verbose=<span class="nv">True</span>   <span class="cm"># shows generated pandas code</span>
+)
+
+<span class="var">response</span> = <span class="kw">await</span> <span class="var">query_engine</span>.<span class="fn">aquery</span>(
+    <span class="str">"What was the average revenue per region in Q3?"</span>
+)
+<span class="cm"># Internally generates: df[df['quarter']=='Q3'].groupby('region')['revenue'].mean()</span></pre>
+
+      <div class="section-label" style="margin-top:16px;">Table &amp; chart parsing from PDFs (#66)</div>
+      <pre><span class="kw">from</span> <span class="var">llama_parse</span> <span class="kw">import</span> <span class="fn">LlamaParse</span>
+
+<span class="cm"># LlamaParse extracts tables as markdown</span>
+<span class="var">parser</span> = <span class="fn">LlamaParse</span>(
+    api_key=<span class="str">"YOUR_KEY"</span>,
+    result_type=<span class="str">"markdown"</span>,
+    <span class="cm"># Tables become markdown tables:</span>
+    <span class="cm"># | Product | Q1 | Q2 | Q3 |</span>
+    <span class="cm"># |---------|----|----|----| ...</span>
+)
+<span class="var">docs</span> = <span class="kw">await</span> <span class="var">parser</span>.<span class="fn">aload_data</span>(<span class="str">"financial_report.pdf"</span>)
+
+<span class="cm"># Or use multimodal LLM to describe charts</span>
+<span class="kw">from</span> <span class="var">llama_index.multi_modal_llms.openai</span> <span class="kw">import</span> <span class="fn">OpenAIMultiModal</span>
+
+<span class="var">mm_llm</span> = <span class="fn">OpenAIMultiModal</span>(model=<span class="str">"gpt-4o"</span>)
+
+<span class="cm"># Pass chart image to multimodal LLM</span>
+<span class="var">response</span> = <span class="kw">await</span> <span class="var">mm_llm</span>.<span class="fn">acomplete</span>(
+    prompt=<span class="str">"Extract the data from this chart as a table:"</span>,
+    image_documents=<span class="var">chart_image_docs</span>
+)</pre>
+
+      <div class="kv-grid">
+        <div class="kv-key">LlamaParse</div>
+        <div class="kv-val">Best for tables in PDFs — extracts as clean markdown. Handles merged cells, complex layouts.</div>
+        <div class="kv-key">PandasQueryEngine</div>
+        <div class="kv-val">Best for CSV/tabular data — generates and executes pandas code to answer questions.</div>
+        <div class="kv-key">Multimodal LLM</div>
+        <div class="kv-val">Best for charts/graphs — GPT-4o can read bar charts, pie charts, trend lines visually.</div>
+      </div>
+
+      <div class="note note-blue">
+        <span class="icon">📊</span>
+        <span><strong>Production pipeline for financial docs:</strong> LlamaParse → markdown tables → index into VectorStore → query naturally. Charts → GPT-4o vision → text description → index alongside text.</span>
+      </div>
+    </div>
+  </div>
+
+  <footer>LlamaIndex Notes · <span>Topic 11 of 19</span> · Structured Output &amp; Data Extraction</footer>
+
+</div>
+</body>
+</html>
