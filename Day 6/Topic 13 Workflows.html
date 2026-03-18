@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LlamaIndex — Topic 13: Workflows</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --surface: #13161e;
+      --border: #1e2330;
+      --accent: #818cf8;
+      --accent2: #38bdf8;
+      --accent3: #4ade80;
+      --accent4: #f97316;
+      --accent5: #fb7185;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --code-bg: #0a0c10;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      padding: 40px 20px 80px;
+    }
+
+    .page-wrap { max-width: 920px; margin: 0 auto; }
+
+    .header {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      margin-bottom: 48px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tag {
+      background: var(--accent);
+      color: #fff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 4px;
+      white-space: nowrap;
+      margin-top: 6px;
+    }
+
+    .header-text h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1; }
+    .header-text p  { color: var(--muted); font-size: 14px; margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
+
+    .crown-banner {
+      background: linear-gradient(135deg, rgba(129,140,248,0.12), rgba(56,189,248,0.08));
+      border: 1px solid rgba(129,140,248,0.3);
+      border-radius: 12px;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      margin-bottom: 28px;
+    }
+    .crown-icon { font-size: 28px; }
+    .crown-text { font-size: 14px; color: #c7d2fe; line-height: 1.6; }
+    .crown-text strong { color: var(--accent); }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 24px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: var(--accent); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(129,140,248,0.1);
+      border: 1px solid rgba(129,140,248,0.22);
+      padding: 3px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .card-header h2 { font-size: 16px; font-weight: 700; }
+    .card-body { padding: 20px 24px; }
+    .card-body p { font-size: 14px; color: #94a3b8; line-height: 1.7; margin-bottom: 14px; }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      line-height: 1.7;
+      margin: 10px 0;
+    }
+
+    .kw  { color: #38bdf8; }
+    .fn  { color: #f97316; }
+    .str { color: #4ade80; }
+    .cm  { color: #475569; font-style: italic; }
+    .var { color: #e2e8f0; }
+    .nv  { color: #a78bfa; }
+    .dec { color: #818cf8; }
+
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+      margin-top: 4px;
+    }
+
+    .kv-grid {
+      display: grid;
+      grid-template-columns: 210px 1fr;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    .kv-key {
+      background: rgba(255,255,255,0.03);
+      padding: 10px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--accent);
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-val {
+      background: rgba(255,255,255,0.01);
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #94a3b8;
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-key:last-of-type, .kv-val:last-of-type { border-bottom: none; }
+
+    .note {
+      display: flex;
+      gap: 10px;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-top: 14px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .note-indigo { background: rgba(129,140,248,0.08); border: 1px solid rgba(129,140,248,0.22); color: #c7d2fe; }
+    .note-green  { background: rgba(74,222,128,0.06);  border: 1px solid rgba(74,222,128,0.2);   color: #86efac; }
+    .note-orange { background: rgba(249,115,22,0.07);  border: 1px solid rgba(249,115,22,0.2);   color: #fdba74; }
+    .note-blue   { background: rgba(56,189,248,0.07);  border: 1px solid rgba(56,189,248,0.2);   color: #7dd3fc; }
+    .note-pink   { background: rgba(251,113,133,0.07); border: 1px solid rgba(251,113,133,0.22); color: #fda4af; }
+    .note span.icon { font-size: 16px; flex-shrink: 0; }
+
+    /* Workflow diagram */
+    .wf-diagram {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      margin: 14px 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+    .wf-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .wf-event {
+      padding: 8px 16px;
+      border-radius: 20px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .we-start  { background: rgba(74,222,128,0.15); border: 1px solid rgba(74,222,128,0.3);  color: #4ade80; }
+    .we-event  { background: rgba(129,140,248,0.12); border: 1px solid rgba(129,140,248,0.3); color: #818cf8; }
+    .we-stop   { background: rgba(251,113,133,0.12); border: 1px solid rgba(251,113,133,0.3); color: #fb7185; }
+    .we-step   {
+      background: rgba(56,189,248,0.08);
+      border: 1px solid rgba(56,189,248,0.2);
+      border-radius: 8px;
+      padding: 10px 18px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      color: #7dd3fc;
+      text-align: center;
+      min-width: 140px;
+    }
+    .wf-arrow { color: var(--muted); font-size: 18px; }
+    .wf-label { font-size: 10px; color: var(--muted); font-family: 'JetBrains Mono', monospace; }
+
+    /* Parallel diagram */
+    .parallel-diag {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 20px;
+      margin: 14px 0;
+    }
+    .pd-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin: 8px 0; }
+    .pd-box {
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      text-align: center;
+    }
+    .pd-trigger { background: rgba(129,140,248,0.12); border: 1px solid rgba(129,140,248,0.3); color: #818cf8; }
+    .pd-parallel{ background: rgba(249,115,22,0.10);  border: 1px solid rgba(249,115,22,0.25); color: #fb923c; }
+    .pd-join    { background: rgba(74,222,128,0.10);  border: 1px solid rgba(74,222,128,0.25); color: #4ade80; }
+    .pd-arrow   { color: var(--muted); font-size: 16px; }
+    .pd-sub     { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+    /* Two-col */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin: 12px 0;
+    }
+    .col-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    footer {
+      margin-top: 60px;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    footer span { color: var(--accent); }
+
+    @media(max-width:680px){ .two-col { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="tag">TOPIC 13 / 19</div>
+    <div class="header-text">
+      <h1>Workflows</h1>
+      <p>9 subtopics · #75 → #83 · The most important production pattern</p>
+    </div>
+  </div>
+
+  <div class="crown-banner">
+    <div class="crown-icon">👑</div>
+    <div class="crown-text"><strong>Most Important Topic for Production.</strong> Workflows are LlamaIndex's event-driven orchestration system. They replace ad-hoc scripts with typed, testable, deployable pipelines — with built-in support for async parallelism, retries, HITL, and durable execution. Every serious production LlamaIndex project uses them.</div>
+  </div>
+
+
+  <!-- CARD 75 — Event-driven architecture -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#75</span>
+      <h2>Event-Driven Workflow Architecture</h2>
+    </div>
+    <div class="card-body">
+      <p>Workflows are built around <strong>Events</strong> and <strong>Steps</strong>. Steps are functions that consume events and emit new events. This decouples your pipeline stages and makes them independently testable.</p>
+
+      <div class="section-label">Core concepts</div>
+      <div class="kv-grid">
+        <div class="kv-key">Event</div>
+        <div class="kv-val">A Pydantic class that carries data between steps. Typed payload.</div>
+        <div class="kv-key">Step</div>
+        <div class="kv-val">An async function decorated with <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">@step</code>. Consumes one event, emits another.</div>
+        <div class="kv-key">StartEvent</div>
+        <div class="kv-val">The built-in trigger event. Every workflow starts here.</div>
+        <div class="kv-key">StopEvent</div>
+        <div class="kv-val">The built-in termination event. Return this to end the workflow.</div>
+        <div class="kv-key">Workflow</div>
+        <div class="kv-val">The class that holds all steps. Call <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">await wf.run()</code> to execute.</div>
+      </div>
+
+      <div class="section-label" style="margin-top:14px;">Visual flow</div>
+      <div class="wf-diagram">
+        <div class="wf-row">
+          <div class="wf-event we-start">StartEvent</div>
+          <span class="wf-arrow">→</span>
+          <div class="we-step">retrieve()</div>
+          <span class="wf-arrow">→</span>
+          <div class="wf-event we-event">RetrievedEvent</div>
+        </div>
+        <div class="wf-row"><span class="wf-arrow" style="transform:rotate(90deg)">→</span></div>
+        <div class="wf-row">
+          <div class="wf-event we-event">RetrievedEvent</div>
+          <span class="wf-arrow">→</span>
+          <div class="we-step">rerank()</div>
+          <span class="wf-arrow">→</span>
+          <div class="wf-event we-event">RankedEvent</div>
+        </div>
+        <div class="wf-row"><span class="wf-arrow" style="transform:rotate(90deg)">→</span></div>
+        <div class="wf-row">
+          <div class="wf-event we-event">RankedEvent</div>
+          <span class="wf-arrow">→</span>
+          <div class="we-step">synthesize()</div>
+          <span class="wf-arrow">→</span>
+          <div class="wf-event we-stop">StopEvent</div>
+        </div>
+      </div>
+
+      <div class="section-label">Minimal workflow example</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core.workflow</span> <span class="kw">import</span> (
+    <span class="fn">Workflow</span>, <span class="fn">StartEvent</span>, <span class="fn">StopEvent</span>, <span class="fn">Event</span>, <span class="fn">step</span>
+)
+
+<span class="cm"># 1. Define custom events (typed payloads)</span>
+<span class="kw">class</span> <span class="fn">RetrievedEvent</span>(<span class="fn">Event</span>):
+    nodes: <span class="fn">List</span>[<span class="fn">NodeWithScore</span>]
+
+<span class="kw">class</span> <span class="fn">RankedEvent</span>(<span class="fn">Event</span>):
+    nodes: <span class="fn">List</span>[<span class="fn">NodeWithScore</span>]
+
+<span class="cm"># 2. Build the workflow</span>
+<span class="kw">class</span> <span class="fn">RAGWorkflow</span>(<span class="fn">Workflow</span>):
+
+    <span class="dec">@step</span>
+    <span class="kw">async def</span> <span class="fn">retrieve</span>(<span class="var">self</span>, ev: <span class="fn">StartEvent</span>) -> <span class="fn">RetrievedEvent</span>:
+        <span class="var">nodes</span> = <span class="kw">await</span> <span class="var">retriever</span>.<span class="fn">aretrieve</span>(<span class="var">ev</span>.<span class="var">query</span>)
+        <span class="kw">return</span> <span class="fn">RetrievedEvent</span>(nodes=<span class="var">nodes</span>)
+
+    <span class="dec">@step</span>
+    <span class="kw">async def</span> <span class="fn">rerank</span>(<span class="var">self</span>, ev: <span class="fn">RetrievedEvent</span>) -> <span class="fn">RankedEvent</span>:
+        <span class="var">nodes</span> = <span class="fn">reranker</span>.<span class="fn">postprocess_nodes</span>(<span class="var">ev</span>.<span class="var">nodes</span>)
+        <span class="kw">return</span> <span class="fn">RankedEvent</span>(nodes=<span class="var">nodes</span>)
+
+    <span class="dec">@step</span>
+    <span class="kw">async def</span> <span class="fn">synthesize</span>(<span class="var">self</span>, ev: <span class="fn">RankedEvent</span>) -> <span class="fn">StopEvent</span>:
+        <span class="var">response</span> = <span class="kw">await</span> <span class="var">synthesizer</span>.<span class="fn">asynthesize</span>(<span class="var">ev</span>.<span class="var">nodes</span>)
+        <span class="kw">return</span> <span class="fn">StopEvent</span>(result=<span class="var">str</span>(<span class="var">response</span>))
+
+<span class="cm"># 3. Run it</span>
+<span class="var">wf</span> = <span class="fn">RAGWorkflow</span>(timeout=<span class="nv">60</span>)
+<span class="var">result</span> = <span class="kw">await</span> <span class="var">wf</span>.<span class="fn">run</span>(query=<span class="str">"What is our revenue forecast?"</span>)
+<span class="fn">print</span>(<span class="var">result</span>)</pre>
+
+      <div class="note note-indigo">
+        <span class="icon">💡</span>
+        <span>Events are <strong>type-safe</strong> — if a step emits the wrong type, you get an error immediately. This makes workflows far easier to debug than untyped chains or pipelines.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 76 — State management -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#76</span>
+      <h2>Managing State Across Workflow Steps</h2>
+    </div>
+    <div class="card-body">
+      <p>Workflows use a shared <code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent)">Context</code> object to pass state between steps without threading it through every event payload. Essential for accumulating results across multiple steps.</p>
+
+      <div class="section-label">Using Context for shared state</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core.workflow</span> <span class="kw">import</span> <span class="fn">Context</span>
+
+<span class="kw">class</span> <span class="fn">ResearchWorkflow</span>(<span class="fn">Workflow</span>):
+
+    <span class="dec">@step</span>
+    <span class="kw">async def</span> <span class="fn">gather_sources</span>(<span class="var">self</span>, ctx: <span class="fn">Context</span>, ev: <span class="fn">StartEvent</span>) -> <span class="fn">SourcesEvent</span>:
+        <span class="cm"># Store data in context — available to all later steps</span>
+        <span class="kw">await</span> <span class="var">ctx</span>.<span class="fn">set</span>(<span class="str">"query"</span>, <span class="var">ev</span>.<span class="var">query</span>)
+        <span class="kw">await</span> <span class="var">ctx</span>.<span class="fn">set</span>(<span class="str">"sources_found"</span>, <span class="nv">0</span>)
+        <span class="var">nodes</span> = <span class="kw">await</span> <span class="var">retriever</span>.<span class="fn">aretrieve</span>(<span class="var">ev</span>.<span class="var">query</span>)
+        <span class="kw">await</span> <span class="var">ctx</span>.<span class="fn">set</span>(<span class="str">"sources_found"</span>, <span class="fn">len</span>(<span class="var">nodes</span>))
+        <span class="kw">return</span> <span class="fn">SourcesEvent</span>(nodes=<span class="var">nodes</span>)
+
+    <span class="dec">@step</span>
+    <span class="kw">async def</span> <span class="fn">analyze</span>(<span class="var">self</span>, ctx: <span class="fn">Context</span>, ev: <span class="fn">SourcesEvent</span>) -> <span class="fn">StopEvent</span>:
+        <span class="cm"># Read state set by a previous step</span>
+        <span class="var">query</span> = <span class="kw">await</span> <span class="var">ctx</span>.<span class="fn">get</span>(<span class="str">"query"</span>)
+        <span class="var">count</span> = <span class="kw">await</span> <span class="var">ctx</span>.<span class="fn">get</span>(<span class="str">"sources_found"</span>)
+        <span class="var">answer</span> = <span class="kw">await</span> <span class="fn">synthesize</span>(<span class="var">query</span>, <span class="var">ev</span>.<span class="var">nodes</span>)
+        <span class="kw">return</span> <span class="fn">StopEvent</span>(result=<span class="fn">f</span><span class="str">"[{count} sources] {answer}"</span>)</pre>
+
+      <div class="note note-green">
+        <span class="icon">🗃️</span>
+        <span>Use <strong>Context</strong> for intermediate data (counts, flags, accumulated results). Use <strong>Events</strong> only for the data a step directly needs to run. Don't overload event payloads.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 77 — Branches, loops, conditionals -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#77</span>
+      <h2>Branches, Loops &amp; Conditional Logic</h2>
+    </div>
+    <div class="card-body">
+      <p>Workflows support dynamic routing — steps can return different event types based on logic, creating branches and loops. Use Python Union types to declare multiple possible outputs.</p>
+
+      <div class="section-label">Conditional branching — step returns Union of events</div>
+      <pre><span class="kw">from</span> <span class="var">typing</span> <span class="kw">import</span> <span class="fn">Union</span>
+
+<span class="kw">class</span> <span class="fn">ValidEvent</span>(<span class="fn">Event</span>):   query: <span class="var">str</span>
+<span class="kw">class</span> <span class="fn">InvalidEvent</span>(<span class="fn">Event</span>): reason: <span class="var">str</span>
+
+<span class="kw">class</span> <span class="fn">RouterWorkflow</span>(<span class="fn">Workflow</span>):
+
+    <span class="dec">@step</span>
+    <span class="kw">async def</span> <span class="fn">validate_query</span>(<span class="var">self</span>, ev: <span class="fn">StartEvent</span>) -> <span class="fn">Union</span>[<span class="fn">ValidEvent</span>, <span class="fn">InvalidEvent</span>]:
+        <span class="kw">if</span> <span class="fn">len</span>(<span class="var">ev</span>.<span class="var">query</span>.<span class="fn">strip</span>()) < <span class="nv">3</span>:
+            <span class="kw">return</span> <span class="fn">InvalidEvent</span>(reason=<span class="str">"Query too short"</span>)
+        <span class="kw">return</span> <span class="fn">ValidEvent</span>(query=<span class="var">ev</span>.<span class="var">query</span>)
+
+    <span class="dec">@step</span>
+    <span class="kw">async def</span> <span class="fn">process</span>(<span class="var">self</span>, ev: <span class="fn">ValidEvent</span>) -> <span class="fn">StopEvent</span>:
+        <span class="var">result</span> = <span class="kw">await</span> <span class="fn">rag_query</span>(<span class="var">ev</span>.<span class="var">query</span>)
+        <span class="kw">return</span> <span class="fn">StopEvent</span>(result=<span class="var">result</span>)
+
+    <span class="dec">@step</span>
+    <span class="kw">async def</span> <span class="fn">handle_invalid</span>(<span class="var">self</span>, ev: <span class="fn">InvalidEvent</span>) -> <span class="fn">StopEvent</span>:
+        <span class="kw">return</span> <span class="fn">StopEvent</span>(result=<span class="fn">f</span><span class="str">"Invalid query: {ev.reason}"</span>)</pre>
+
+      <div class="section-label" style="margin-top:14px;">Loops — self-correcting RAG pattern</div>
+      <pre><span class="kw">class</span> <span class="fn">GradeEvent</span>(<span class="fn">Event</span>):
+    answer: <span class="var">str</span>
+    is_sufficient: <span class="var">bool</span>
+
+<span class="kw">class</span> <span class="fn">CorrectiveRAGWorkflow</span>(<span class="fn">Workflow</span>):
+
+    <span class="dec">@step</span>
+    <span class="kw">async def</span> <span class="fn">grade_answer</span>(<span class="var">self</span>, ctx: <span class="fn">Context</span>, ev: <span class="fn">GradeEvent</span>) -> <span class="fn">Union</span>[<span class="fn">StartEvent</span>, <span class="fn">StopEvent</span>]:
+        <span class="var">attempts</span> = <span class="kw">await</span> <span class="var">ctx</span>.<span class="fn">get</span>(<span class="str">"attempts"</span>, default=<span class="nv">0</span>)
+
+        <span class="kw">if</span> <span class="var">ev</span>.<span class="var">is_sufficient</span> <span class="kw">or</span> <span class="var">attempts</span> >= <span class="nv">3</span>:
+            <span class="kw">return</span> <span class="fn">StopEvent</span>(result=<span class="var">ev</span>.<span class="var">answer</span>)    <span class="cm"># ← exit loop</span>
+
+        <span class="cm"># Loop back — retry with refined query</span>
+        <span class="kw">await</span> <span class="var">ctx</span>.<span class="fn">set</span>(<span class="str">"attempts"</span>, <span class="var">attempts</span> + <span class="nv">1</span>)
+        <span class="kw">return</span> <span class="fn">StartEvent</span>(query=<span class="fn">f</span><span class="str">"More detail on: {ev.answer}"</span>)  <span class="cm"># ← retry</span></pre>
+
+      <div class="note note-orange">
+        <span class="icon">🔄</span>
+        <span>Always set a <strong>max iteration guard</strong> in loops (as shown with <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">attempts >= 3</code>). Workflows with no exit condition will run until they hit the <code>timeout</code> set on the Workflow class.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 78 — Concurrent/Parallel execution -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#78</span>
+      <h2>Concurrent &amp; Parallel Step Execution</h2>
+    </div>
+    <div class="card-body">
+      <p>Steps that emit the same event type multiple times run in parallel automatically. Use <code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent)">ctx.collect_events()</code> to gather all parallel results before continuing. This is the most powerful performance feature of Workflows.</p>
+
+      <div class="section-label">Parallel execution diagram</div>
+      <div class="parallel-diag">
+        <div class="pd-row">
+          <div class="pd-box pd-trigger">StartEvent<br/><span class="pd-sub">user query</span></div>
+        </div>
+        <div class="pd-row"><span class="pd-arrow">↓ fan-out</span></div>
+        <div class="pd-row" style="gap:20px;">
+          <div class="pd-box pd-parallel">🔍 search_docs()<br/><span class="pd-sub">SourceEvent</span></div>
+          <div class="pd-box pd-parallel">🌐 search_web()<br/><span class="pd-sub">SourceEvent</span></div>
+          <div class="pd-box pd-parallel">🗄️ query_sql()<br/><span class="pd-sub">SourceEvent</span></div>
+        </div>
+        <div class="pd-row"><span class="pd-arrow">↓ fan-in (collect_events)</span></div>
+        <div class="pd-row">
+          <div class="pd-box pd-join">synthesize()<br/><span class="pd-sub">all 3 SourceEvents collected → StopEvent</span></div>
+        </div>
+      </div>
+
+      <div class="section-label">Code</div>
+      <pre><span class="kw">class</span> <span class="fn">SourceEvent</span>(<span class="fn">Event</span>):
+    source_type: <span class="var">str</span>
+    content: <span class="var">str</span>
+
+<span class="kw">class</span> <span class="fn">ParallelRAGWorkflow</span>(<span class="fn">Workflow</span>):
+
+    <span class="dec">@step</span>
+    <span class="kw">async def</span> <span class="fn">search_docs</span>(<span class="var">self</span>, ev: <span class="fn">StartEvent</span>) -> <span class="fn">SourceEvent</span>:
+        <span class="var">result</span> = <span class="kw">await</span> <span class="var">doc_retriever</span>.<span class="fn">aretrieve</span>(<span class="var">ev</span>.<span class="var">query</span>)
+        <span class="kw">return</span> <span class="fn">SourceEvent</span>(source_type=<span class="str">"docs"</span>, content=<span class="var">str</span>(<span class="var">result</span>))
+
+    <span class="dec">@step</span>
+    <span class="kw">async def</span> <span class="fn">search_web</span>(<span class="var">self</span>, ev: <span class="fn">StartEvent</span>) -> <span class="fn">SourceEvent</span>:
+        <span class="var">result</span> = <span class="kw">await</span> <span class="fn">web_search</span>(<span class="var">ev</span>.<span class="var">query</span>)
+        <span class="kw">return</span> <span class="fn">SourceEvent</span>(source_type=<span class="str">"web"</span>, content=<span class="var">result</span>)
+
+    <span class="dec">@step</span>
+    <span class="kw">async def</span> <span class="fn">query_sql</span>(<span class="var">self</span>, ev: <span class="fn">StartEvent</span>) -> <span class="fn">SourceEvent</span>:
+        <span class="var">result</span> = <span class="kw">await</span> <span class="fn">sql_query</span>(<span class="var">ev</span>.<span class="var">query</span>)
+        <span class="kw">return</span> <span class="fn">SourceEvent</span>(source_type=<span class="str">"sql"</span>, content=<span class="var">result</span>)
+
+    <span class="dec">@step</span>
+    <span class="kw">async def</span> <span class="fn">synthesize</span>(<span class="var">self</span>, ctx: <span class="fn">Context</span>, ev: <span class="fn">SourceEvent</span>) -> <span class="fn">StopEvent</span>:
+        <span class="cm"># Collect all 3 SourceEvents before proceeding</span>
+        <span class="var">events</span> = <span class="var">ctx</span>.<span class="fn">collect_events</span>(<span class="var">ev</span>, [<span class="fn">SourceEvent</span>] * <span class="nv">3</span>)
+        <span class="kw">if</span> <span class="var">events</span> <span class="kw">is</span> <span class="nv">None</span>:
+            <span class="kw">return</span> <span class="nv">None</span>   <span class="cm"># wait for remaining events</span>
+
+        <span class="cm"># All 3 collected — synthesize combined answer</span>
+        <span class="var">combined</span> = <span class="str">"\n"</span>.<span class="fn">join</span>(<span class="var">e</span>.<span class="var">content</span> <span class="kw">for</span> <span class="var">e</span> <span class="kw">in</span> <span class="var">events</span>)
+        <span class="var">answer</span> = <span class="kw">await</span> <span class="var">llm</span>.<span class="fn">acomplete</span>(<span class="var">combined</span>)
+        <span class="kw">return</span> <span class="fn">StopEvent</span>(result=<span class="var">str</span>(<span class="var">answer</span>))</pre>
+
+      <div class="note note-blue">
+        <span class="icon">⚡</span>
+        <span>Parallel steps run concurrently via asyncio. <strong>3 parallel retrievals</strong> take the same time as the slowest one — not 3× longer. Huge performance win for multi-source RAG.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 79 + 80 — HITL + Retry -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#79 · #80</span>
+      <h2>Human-in-the-Loop &amp; Retry Logic</h2>
+    </div>
+    <div class="card-body">
+      <div class="two-col">
+        <div>
+          <div class="col-label">🧑 HITL in Workflows (#79)</div>
+          <p style="font-size:13px;color:#64748b;margin-bottom:10px;">Pause execution and wait for human input. The workflow suspends at the HITL step and resumes when the human responds — even across server restarts if using durable execution.</p>
+          <pre style="margin:0;font-size:11.5px;"><span class="kw">from</span> <span class="var">llama_index.core.workflow</span> <span class="kw">import</span> <span class="fn">HumanResponseEvent</span>
+
+<span class="kw">class</span> <span class="fn">ApprovalWorkflow</span>(<span class="fn">Workflow</span>):
+
+    <span class="dec">@step</span>
+    <span class="kw">async def</span> <span class="fn">draft_email</span>(<span class="var">self</span>, ev: <span class="fn">StartEvent</span>) -> <span class="fn">HumanResponseEvent</span>:
+        <span class="var">draft</span> = <span class="kw">await</span> <span class="fn">write_email</span>(<span class="var">ev</span>.<span class="var">brief</span>)
+        <span class="cm"># Emit HumanResponseEvent — pauses here</span>
+        <span class="kw">return</span> <span class="fn">HumanResponseEvent</span>(
+            response=<span class="fn">input</span>(
+                <span class="fn">f</span><span class="str">"Approve this email?\n{draft}\n(yes/no): "</span>
+            )
+        )
+
+    <span class="dec">@step</span>
+    <span class="kw">async def</span> <span class="fn">send_or_cancel</span>(<span class="var">self</span>, ev: <span class="fn">HumanResponseEvent</span>) -> <span class="fn">StopEvent</span>:
+        <span class="kw">if</span> <span class="var">ev</span>.<span class="var">response</span>.<span class="fn">lower</span>() == <span class="str">"yes"</span>:
+            <span class="kw">return</span> <span class="fn">StopEvent</span>(result=<span class="str">"Email sent ✓"</span>)
+        <span class="kw">return</span> <span class="fn">StopEvent</span>(result=<span class="str">"Cancelled by human"</span>)</pre>
+        </div>
+        <div>
+          <div class="col-label">🔁 Retry Logic (#80)</div>
+          <p style="font-size:13px;color:#64748b;margin-bottom:10px;">Steps can retry on failure using the <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">@step</code> decorator parameters or a try/except loop pattern.</p>
+          <pre style="margin:0;font-size:11.5px;"><span class="kw">import</span> <span class="var">asyncio</span>
+
+<span class="kw">class</span> <span class="fn">RobustWorkflow</span>(<span class="fn">Workflow</span>):
+
+    <span class="dec">@step</span>
+    <span class="kw">async def</span> <span class="fn">call_api</span>(<span class="var">self</span>, ev: <span class="fn">StartEvent</span>) -> <span class="fn">StopEvent</span>:
+        <span class="cm"># Manual retry with backoff</span>
+        <span class="kw">for</span> <span class="var">attempt</span> <span class="kw">in</span> <span class="fn">range</span>(<span class="nv">3</span>):
+            <span class="kw">try</span>:
+                <span class="var">result</span> = <span class="kw">await</span> <span class="fn">flaky_api_call</span>(<span class="var">ev</span>.<span class="var">data</span>)
+                <span class="kw">return</span> <span class="fn">StopEvent</span>(result=<span class="var">result</span>)
+            <span class="kw">except</span> <span class="fn">Exception</span> <span class="kw">as</span> <span class="var">e</span>:
+                <span class="kw">if</span> <span class="var">attempt</span> == <span class="nv">2</span>:
+                    <span class="kw">raise</span>
+                <span class="cm"># Exponential backoff</span>
+                <span class="kw">await</span> <span class="var">asyncio</span>.<span class="fn">sleep</span>(<span class="nv">2</span> ** <span class="var">attempt</span>)
+                <span class="fn">print</span>(<span class="fn">f</span><span class="str">"Retry {attempt+1}: {e}"</span>)</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 81 + 82 + 83 — Durable, Streaming, Deploy -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#81 · #82 · #83</span>
+      <h2>Durable Workflows · Streaming Events · REST API Deployment</h2>
+    </div>
+    <div class="card-body">
+
+      <div class="section-label">Durable workflows — pause &amp; resume (#81)</div>
+      <p>Durable workflows persist their state between steps. If the server crashes mid-workflow, execution resumes from the last completed step — no work is lost.</p>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core.workflow</span> <span class="kw">import</span> <span class="fn">Workflow</span>
+
+<span class="cm"># Enable checkpointing — state saved after each step</span>
+<span class="var">wf</span> = <span class="fn">RAGWorkflow</span>(
+    timeout=<span class="nv">300</span>,
+    checkpointer=<span class="fn">WorkflowCheckpointer</span>(storage=<span class="str">"./checkpoints"</span>)
+)
+
+<span class="cm"># If interrupted, resume from checkpoint</span>
+<span class="var">result</span> = <span class="kw">await</span> <span class="var">wf</span>.<span class="fn">run</span>(query=<span class="str">"Long running analysis..."</span>)</pre>
+
+      <div class="section-label" style="margin-top:16px;">Streaming workflow events to frontend (#82)</div>
+      <pre><span class="kw">class</span> <span class="fn">ProgressEvent</span>(<span class="fn">Event</span>):   message: <span class="var">str</span>
+
+<span class="kw">class</span> <span class="fn">StreamingWorkflow</span>(<span class="fn">Workflow</span>):
+
+    <span class="dec">@step</span>
+    <span class="kw">async def</span> <span class="fn">retrieve</span>(<span class="var">self</span>, ctx: <span class="fn">Context</span>, ev: <span class="fn">StartEvent</span>) -> <span class="fn">RetrievedEvent</span>:
+        <span class="cm"># Emit progress events — visible to frontend immediately</span>
+        <span class="var">ctx</span>.<span class="fn">write_event_to_stream</span>(<span class="fn">ProgressEvent</span>(message=<span class="str">"🔍 Searching documents..."</span>))
+        <span class="var">nodes</span> = <span class="kw">await</span> <span class="var">retriever</span>.<span class="fn">aretrieve</span>(<span class="var">ev</span>.<span class="var">query</span>)
+        <span class="var">ctx</span>.<span class="fn">write_event_to_stream</span>(<span class="fn">ProgressEvent</span>(message=<span class="fn">f</span><span class="str">"✅ Found {len(nodes)} sources"</span>))
+        <span class="kw">return</span> <span class="fn">RetrievedEvent</span>(nodes=<span class="var">nodes</span>)
+
+<span class="cm"># Consume the stream</span>
+<span class="var">handler</span> = <span class="var">wf</span>.<span class="fn">run</span>(query=<span class="str">"What are our risks?"</span>)
+
+<span class="kw">async for</span> <span class="var">event</span> <span class="kw">in</span> <span class="var">handler</span>.<span class="fn">stream_events</span>():
+    <span class="kw">if</span> <span class="fn">isinstance</span>(<span class="var">event</span>, <span class="fn">ProgressEvent</span>):
+        <span class="fn">print</span>(<span class="var">event</span>.<span class="var">message</span>)   <span class="cm"># forward to frontend</span></pre>
+
+      <div class="section-label" style="margin-top:16px;">Deploy as REST API microservice (#83)</div>
+      <pre><span class="cm"># llama_deploy turns workflows into scalable microservices</span>
+<span class="fn">pip install</span> <span class="str">llama-deploy</span>
+
+<span class="kw">from</span> <span class="var">llama_deploy</span> <span class="kw">import</span> <span class="fn">deploy_workflow</span>, <span class="fn">WorkflowServiceConfig</span>, <span class="fn">ControlPlaneConfig</span>
+
+<span class="kw">async def</span> <span class="fn">main</span>():
+    <span class="kw">await</span> <span class="fn">deploy_workflow</span>(
+        <span class="fn">RAGWorkflow</span>(timeout=<span class="nv">60</span>),
+        workflow_config=<span class="fn">WorkflowServiceConfig</span>(
+            host=<span class="str">"0.0.0.0"</span>,
+            port=<span class="nv">8002</span>,
+            service_name=<span class="str">"rag_workflow"</span>
+        ),
+        control_plane_config=<span class="fn">ControlPlaneConfig</span>()
+    )
+
+<span class="cm"># Now callable via REST:</span>
+<span class="cm"># POST http://localhost:8002/run  {"query": "..."}</span></pre>
+
+      <div class="note note-indigo">
+        <span class="icon">🚀</span>
+        <span><strong>The full production stack:</strong> Write workflow → stream events to frontend → deploy with llama_deploy → manage with llamactl CLI (Topic 19 #108). Your entire RAG pipeline becomes a scalable, observable, restartable microservice.</span>
+      </div>
+
+      <div class="kv-grid" style="margin-top:14px;">
+        <div class="kv-key">Durable (#81)</div>
+        <div class="kv-val">Checkpoint state → survive server crashes → resume from last step</div>
+        <div class="kv-key">Streaming (#82)</div>
+        <div class="kv-val">write_event_to_stream() → real-time progress to frontend</div>
+        <div class="kv-key">Deploy (#83)</div>
+        <div class="kv-val">llama_deploy → workflow becomes REST API microservice</div>
+      </div>
+    </div>
+  </div>
+
+  <footer>LlamaIndex Notes · <span>Topic 13 of 19</span> · Workflows</footer>
+
+</div>
+</body>
+</html>
