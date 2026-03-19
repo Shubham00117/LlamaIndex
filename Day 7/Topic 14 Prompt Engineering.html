@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LlamaIndex — Topic 14: Prompt Engineering</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --surface: #13161e;
+      --border: #1e2330;
+      --accent: #2dd4bf;
+      --accent2: #f97316;
+      --accent3: #a78bfa;
+      --accent4: #4ade80;
+      --accent5: #fb7185;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --code-bg: #0a0c10;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      padding: 40px 20px 80px;
+    }
+
+    .page-wrap { max-width: 900px; margin: 0 auto; }
+
+    .header {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      margin-bottom: 48px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tag {
+      background: var(--accent);
+      color: #0d0f14;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 4px;
+      white-space: nowrap;
+      margin-top: 6px;
+    }
+
+    .header-text h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1; }
+    .header-text p  { color: var(--muted); font-size: 14px; margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 24px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: var(--accent); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(45,212,191,0.1);
+      border: 1px solid rgba(45,212,191,0.22);
+      padding: 3px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .card-header h2 { font-size: 16px; font-weight: 700; }
+    .card-body { padding: 20px 24px; }
+    .card-body p { font-size: 14px; color: #94a3b8; line-height: 1.7; margin-bottom: 14px; }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      line-height: 1.7;
+      margin: 10px 0;
+    }
+
+    .kw  { color: #38bdf8; }
+    .fn  { color: #f97316; }
+    .str { color: #4ade80; }
+    .cm  { color: #475569; font-style: italic; }
+    .var { color: #e2e8f0; }
+    .nv  { color: #a78bfa; }
+
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+      margin-top: 4px;
+    }
+
+    .kv-grid {
+      display: grid;
+      grid-template-columns: 230px 1fr;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    .kv-key {
+      background: rgba(255,255,255,0.03);
+      padding: 10px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--accent);
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-val {
+      background: rgba(255,255,255,0.01);
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #94a3b8;
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-key:last-of-type, .kv-val:last-of-type { border-bottom: none; }
+
+    .note {
+      display: flex;
+      gap: 10px;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-top: 14px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .note-teal   { background: rgba(45,212,191,0.07); border: 1px solid rgba(45,212,191,0.22); color: #5eead4; }
+    .note-green  { background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2);  color: #86efac; }
+    .note-orange { background: rgba(249,115,22,0.07); border: 1px solid rgba(249,115,22,0.2);  color: #fdba74; }
+    .note-purple { background: rgba(167,139,250,0.07);border: 1px solid rgba(167,139,250,0.2); color: #c4b5fd; }
+    .note-pink   { background: rgba(251,113,133,0.07);border: 1px solid rgba(251,113,133,0.22);color: #fda4af; }
+    .note span.icon { font-size: 16px; flex-shrink: 0; }
+
+    /* Prompt anatomy blocks */
+    .prompt-anatomy {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      overflow: hidden;
+      margin: 14px 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .pa-section {
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--border);
+      position: relative;
+    }
+    .pa-section:last-child { border-bottom: none; }
+    .pa-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 4px;
+      display: inline-block;
+      margin-bottom: 6px;
+    }
+    .pal-system  { background: rgba(45,212,191,0.15); color: #2dd4bf; border: 1px solid rgba(45,212,191,0.3); }
+    .pal-context { background: rgba(167,139,250,0.15); color: #a78bfa; border: 1px solid rgba(167,139,250,0.3); }
+    .pal-query   { background: rgba(74,222,128,0.12); color: #4ade80; border: 1px solid rgba(74,222,128,0.25); }
+    .pal-inst    { background: rgba(249,115,22,0.12); color: #f97316; border: 1px solid rgba(249,115,22,0.25); }
+    .pa-text     { color: #94a3b8; font-size: 13px; }
+    .pa-var      { color: #2dd4bf; }
+
+    /* Before/after prompt comparison */
+    .ba-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 14px 0;
+    }
+    .ba-card {
+      background: var(--code-bg);
+      border-radius: 8px;
+      padding: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+    .ba-bad  { border: 1px solid rgba(251,113,133,0.25); }
+    .ba-good { border: 1px solid rgba(74,222,128,0.25); }
+    .ba-header {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Two-col */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin: 12px 0;
+    }
+    .col-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    /* Template variable tags */
+    .var-tag {
+      display: inline;
+      background: rgba(45,212,191,0.12);
+      border: 1px solid rgba(45,212,191,0.25);
+      border-radius: 4px;
+      padding: 1px 6px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #2dd4bf;
+    }
+
+    /* Prompt type cards */
+    .prompt-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 14px 0;
+    }
+    .prompt-card {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px;
+      transition: border-color 0.2s;
+    }
+    .prompt-card:hover { border-color: var(--accent); }
+    .pc-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .pc-tag {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-bottom: 8px;
+    }
+    .pt-sys  { background: rgba(45,212,191,0.12); color: #2dd4bf; border: 1px solid rgba(45,212,191,0.25); }
+    .pt-qa   { background: rgba(167,139,250,0.12); color: #a78bfa; border: 1px solid rgba(167,139,250,0.25); }
+    .pt-ref  { background: rgba(249,115,22,0.12); color: #fb923c; border: 1px solid rgba(249,115,22,0.25); }
+    .pc-desc { font-size: 11px; color: #64748b; line-height: 1.4; }
+
+    footer {
+      margin-top: 60px;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    footer span { color: var(--accent); }
+
+    @media(max-width:680px){
+      .ba-grid { grid-template-columns: 1fr; }
+      .prompt-grid { grid-template-columns: repeat(2,1fr); }
+      .two-col { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="tag">TOPIC 14 / 19</div>
+    <div class="header-text">
+      <h1>Prompt Engineering</h1>
+      <p>3 subtopics · #84 → #86 · System prompts, templates &amp; LlamaIndex patterns</p>
+    </div>
+  </div>
+
+
+  <!-- CARD 84 — Custom System Prompts -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#84</span>
+      <h2>Custom System Prompts for Query &amp; Chat Engines</h2>
+    </div>
+    <div class="card-body">
+      <p>The default system prompt is generic. A well-crafted system prompt gives the LLM a persona, scope, tone, and rules — dramatically improving answer quality and consistency for domain-specific applications.</p>
+
+      <div class="section-label">Anatomy of a good RAG system prompt</div>
+      <div class="prompt-anatomy">
+        <div class="pa-section">
+          <span class="pa-label pal-system">Role &amp; Persona</span>
+          <div class="pa-text">You are an expert financial analyst assistant for Acme Corp. You answer questions strictly based on the provided company documents.</div>
+        </div>
+        <div class="pa-section">
+          <span class="pa-label pal-inst">Rules &amp; Constraints</span>
+          <div class="pa-text">- Only use information from the provided context. Never use external knowledge.<br/>
+- If the answer is not in the context, say "I don't have that information in the provided documents."<br/>
+- Always cite the source document and page number when possible.<br/>
+- Use professional, concise language. Avoid speculation.</div>
+        </div>
+        <div class="pa-section">
+          <span class="pa-label pal-context">Context Placeholder</span>
+          <div class="pa-text"><span class="pa-var">{context_str}</span> ← LlamaIndex injects retrieved chunks here</div>
+        </div>
+        <div class="pa-section">
+          <span class="pa-label pal-query">Query Placeholder</span>
+          <div class="pa-text"><span class="pa-var">{query_str}</span> ← User's question injected here</div>
+        </div>
+      </div>
+
+      <div class="section-label">Setting system prompt on QueryEngine</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core</span> <span class="kw">import</span> <span class="fn">PromptTemplate</span>
+
+<span class="var">system_prompt</span> = <span class="str">"""You are an expert financial analyst for Acme Corp.
+Answer only from the provided context. If not found, say so clearly.
+Always cite your source document.
+
+Context:
+{context_str}
+
+Question: {query_str}
+Answer:"""</span>
+
+<span class="var">qa_prompt</span> = <span class="fn">PromptTemplate</span>(<span class="var">system_prompt</span>)
+
+<span class="var">query_engine</span> = <span class="var">index</span>.<span class="fn">as_query_engine</span>()
+
+<span class="cm"># Override the default QA prompt</span>
+<span class="var">query_engine</span>.<span class="fn">update_prompts</span>({
+    <span class="str">"response_synthesizer:text_qa_template"</span>: <span class="var">qa_prompt</span>
+})</pre>
+
+      <div class="section-label" style="margin-top:14px;">Setting system prompt on ChatEngine</div>
+      <pre><span class="var">chat_engine</span> = <span class="var">index</span>.<span class="fn">as_chat_engine</span>(
+    chat_mode=<span class="str">"condense_plus_context"</span>,
+    system_prompt=<span class="str">"""You are a helpful assistant for Acme Corp HR department.
+You only answer questions about HR policies, benefits, and employee procedures.
+If asked about anything outside HR, politely redirect the user.
+Always be professional, empathetic, and concise."""</span>
+)</pre>
+
+      <div class="section-label" style="margin-top:14px;">Before vs After — system prompt impact</div>
+      <div class="ba-grid">
+        <div class="ba-card ba-bad">
+          <div class="ba-header" style="color:#f87171;">❌ Without custom prompt</div>
+          <div style="color:#64748b;">Q: What is our vacation policy?<br/><br/>A: Vacation policies typically include PTO accrual rates based on tenure. Common policies provide 10–15 days for new employees, increasing with years of service. Some companies offer unlimited PTO...</div>
+          <div style="color:#f87171;font-size:10px;margin-top:8px;">← Hallucinated generic info, not from documents</div>
+        </div>
+        <div class="ba-card ba-good">
+          <div class="ba-header" style="color:#4ade80;">✅ With custom prompt</div>
+          <div style="color:#64748b;">Q: What is our vacation policy?<br/><br/>A: According to the Employee Handbook (p.12), full-time employees receive 15 days PTO annually, accruing at 1.25 days/month. PTO resets on January 1st and unused days...</div>
+          <div style="color:#4ade80;font-size:10px;margin-top:8px;">← Cites source, uses actual doc content</div>
+        </div>
+      </div>
+
+      <div class="note note-teal">
+        <span class="icon">💡</span>
+        <span>Always explicitly instruct the LLM to say "I don't know" when context doesn't contain the answer. Without this, it will confidently hallucinate every time.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 85 — Prompt Templates -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#85</span>
+      <h2>Prompt Templates — Customizing Per Use Case</h2>
+    </div>
+    <div class="card-body">
+      <p>LlamaIndex uses <code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent)">PromptTemplate</code> with named variables. Every built-in prompt can be retrieved and overridden for full control over how the LLM is instructed at each stage of the pipeline.</p>
+
+      <div class="section-label">Built-in prompt types you can override</div>
+      <div class="prompt-grid">
+        <div class="prompt-card">
+          <div class="pc-name">text_qa_template</div>
+          <span class="pc-tag pt-qa">QA</span>
+          <div class="pc-desc">Used when synthesizing an answer from retrieved context. Most important to customize.</div>
+        </div>
+        <div class="prompt-card">
+          <div class="pc-name">refine_template</div>
+          <span class="pc-tag pt-ref">Refine</span>
+          <div class="pc-desc">Used in "refine" response mode. Iterates over each chunk to refine the answer.</div>
+        </div>
+        <div class="prompt-card">
+          <div class="pc-name">summary_template</div>
+          <span class="pc-tag pt-sys">Summary</span>
+          <div class="pc-desc">Used in tree_summarize mode for building summary hierarchies.</div>
+        </div>
+        <div class="prompt-card">
+          <div class="pc-name">condense_question_prompt</div>
+          <span class="pc-tag pt-qa">Chat</span>
+          <div class="pc-desc">Used to condense chat history + new question into a standalone query.</div>
+        </div>
+        <div class="prompt-card">
+          <div class="pc-name">chat_history_prompt</div>
+          <span class="pc-tag pt-sys">Chat</span>
+          <div class="pc-desc">Controls how conversation history is formatted before being sent to the LLM.</div>
+        </div>
+        <div class="prompt-card">
+          <div class="pc-name">keyword_extract_template</div>
+          <span class="pc-tag pt-ref">Retrieval</span>
+          <div class="pc-desc">Used by keyword-based retrievers to extract terms from a query.</div>
+        </div>
+      </div>
+
+      <div class="section-label" style="margin-top:4px;">View &amp; override any prompt</div>
+      <pre><span class="cm"># See all prompts in use</span>
+<span class="var">prompts</span> = <span class="var">query_engine</span>.<span class="fn">get_prompts</span>()
+<span class="kw">for</span> <span class="var">key</span>, <span class="var">prompt</span> <span class="kw">in</span> <span class="var">prompts</span>.<span class="fn">items</span>():
+    <span class="fn">print</span>(<span class="fn">f</span><span class="str">"{key}:\n{prompt.get_template()}\n"</span>)
+
+<span class="cm"># Override text_qa_template with custom template</span>
+<span class="var">custom_qa</span> = <span class="fn">PromptTemplate</span>(
+    <span class="str">"""You are a legal document analyst. Answer based ONLY on the context.
+Always cite clause numbers. Use formal legal language.
+
+Context: {context_str}
+Legal Question: {query_str}
+Legal Analysis:"""</span>
+)
+
+<span class="var">query_engine</span>.<span class="fn">update_prompts</span>({
+    <span class="str">"response_synthesizer:text_qa_template"</span>: <span class="var">custom_qa</span>
+})</pre>
+
+      <div class="section-label" style="margin-top:14px;">PromptTemplate with custom variables</div>
+      <pre><span class="cm"># Define a template with custom variables beyond context/query</span>
+<span class="var">report_template</span> = <span class="fn">PromptTemplate</span>(
+    <span class="str">"""You are analyzing documents for {company_name} in {industry}.
+Today's date: {current_date}. Fiscal year: {fiscal_year}.
+
+Context: {context_str}
+Question: {query_str}
+
+Provide a structured analysis with: Executive Summary, Key Findings, Risks."""</span>
+)
+
+<span class="cm"># Partially fill template variables</span>
+<span class="var">filled_template</span> = <span class="var">report_template</span>.<span class="fn">partial_format</span>(
+    company_name=<span class="str">"Acme Corp"</span>,
+    industry=<span class="str">"SaaS"</span>,
+    current_date=<span class="str">"2024-Q3"</span>,
+    fiscal_year=<span class="str">"FY2024"</span>
+)
+<span class="cm"># {context_str} and {query_str} still injected by LlamaIndex</span>
+
+<span class="var">query_engine</span>.<span class="fn">update_prompts</span>({
+    <span class="str">"response_synthesizer:text_qa_template"</span>: <span class="var">filled_template</span>
+})</pre>
+
+      <div class="note note-purple">
+        <span class="icon">🎛️</span>
+        <span><code style="font-family:'JetBrains Mono',monospace;font-size:11px;">partial_format()</code> is powerful — pre-fill static variables (company name, date, persona) at setup time, leaving only <span class="var-tag">{context_str}</span> and <span class="var-tag">{query_str}</span> for LlamaIndex to fill at runtime.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 86 — Prompt Usage Patterns -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#86</span>
+      <h2>Prompt Usage Patterns with LlamaIndex Abstractions</h2>
+    </div>
+    <div class="card-body">
+      <p>LlamaIndex has prompt-specific patterns that work differently from raw LLM calls. Understanding these prevents common mistakes and helps you extract maximum quality from the pipeline.</p>
+
+      <div class="section-label">Pattern 1 — Chain-of-thought in RAG prompts</div>
+      <pre><span class="var">cot_template</span> = <span class="fn">PromptTemplate</span>(
+    <span class="str">"""Answer the question using the provided context.
+
+Think step by step:
+1. Identify the key facts in the context relevant to the question
+2. Reason through the answer using only those facts
+3. State your final answer clearly
+
+Context: {context_str}
+Question: {query_str}
+
+Step-by-step reasoning:"""</span>
+)
+
+<span class="cm"># CoT forces the LLM to reason before answering</span>
+<span class="cm"># Significantly reduces hallucination on complex questions</span></pre>
+
+      <div class="section-label" style="margin-top:14px;">Pattern 2 — Few-shot examples in templates</div>
+      <pre><span class="var">few_shot_template</span> = <span class="fn">PromptTemplate</span>(
+    <span class="str">"""Extract structured data from the document context.
+
+EXAMPLE:
+Context: "Revenue for Q1 was $2.4M, up 12% from Q1 last year."
+Output: {{"period": "Q1", "revenue": 2400000, "growth_pct": 12}}
+
+Context: {context_str}
+Question: {query_str}
+Output (JSON):"""</span>
+)
+
+<span class="cm"># Few-shot examples dramatically improve extraction accuracy</span></pre>
+
+      <div class="section-label" style="margin-top:14px;">Pattern 3 — Prompt debugging</div>
+      <pre><span class="cm"># See the final rendered prompt sent to LLM</span>
+<span class="kw">from</span> <span class="var">llama_index.core.callbacks</span> <span class="kw">import</span> <span class="fn">CallbackManager</span>, <span class="fn">LlamaDebugHandler</span>
+
+<span class="var">debug_handler</span> = <span class="fn">LlamaDebugHandler</span>(print_trace_on_end=<span class="nv">True</span>)
+<span class="var">callback_manager</span> = <span class="fn">CallbackManager</span>([<span class="var">debug_handler</span>])
+
+<span class="fn">Settings</span>.callback_manager = <span class="var">callback_manager</span>
+
+<span class="cm"># Run a query — will print full prompt + LLM response to console</span>
+<span class="var">response</span> = <span class="var">query_engine</span>.<span class="fn">query</span>(<span class="str">"What is our cash position?"</span>)
+
+<span class="cm"># Inspect specific events</span>
+<span class="var">event_pairs</span> = <span class="var">debug_handler</span>.<span class="fn">get_llm_inputs_outputs</span>()
+<span class="kw">for</span> <span class="var">pair</span> <span class="kw">in</span> <span class="var">event_pairs</span>:
+    <span class="fn">print</span>(<span class="str">"INPUT:"</span>, <span class="var">pair</span>[<span class="nv">0</span>].<span class="var">payload</span>[<span class="str">"messages"</span>])
+    <span class="fn">print</span>(<span class="str">"OUTPUT:"</span>, <span class="var">pair</span>[<span class="nv">1</span>].<span class="var">payload</span>[<span class="str">"response"</span>])</pre>
+
+      <div class="section-label" style="margin-top:14px;">Prompt best practices — quick reference</div>
+      <div class="kv-grid">
+        <div class="kv-key">Be explicit about scope</div>
+        <div class="kv-val">"Answer ONLY from the provided context" — not implied, must be stated</div>
+        <div class="kv-key">Define fallback behavior</div>
+        <div class="kv-val">"If the answer is not in the context, say 'I don't have that information'"</div>
+        <div class="kv-key">Specify format</div>
+        <div class="kv-val">"Respond in 2–3 sentences" or "Use bullet points" or "Respond as JSON"</div>
+        <div class="kv-key">Add persona</div>
+        <div class="kv-val">"You are a senior [domain] expert" — improves domain-appropriate language</div>
+        <div class="kv-key">Chain-of-thought</div>
+        <div class="kv-val">"Think step by step before answering" — reduces errors on complex questions</div>
+        <div class="kv-key">Few-shot examples</div>
+        <div class="kv-val">1–3 input/output examples boost extraction and classification accuracy</div>
+        <div class="kv-key">Use partial_format()</div>
+        <div class="kv-val">Pre-fill static context (company, date, persona) — keep templates DRY</div>
+        <div class="kv-key">Debug with LlamaDebug</div>
+        <div class="kv-val">Always inspect the actual rendered prompt — never assume what's sent</div>
+      </div>
+
+      <div class="note note-orange">
+        <span class="icon">⚠️</span>
+        <span>The most common RAG prompt mistake: <strong>not telling the LLM what to do when it doesn't know</strong>. Without explicit fallback instructions, the LLM will always produce an answer — even if it has to make one up.</span>
+      </div>
+
+      <div class="section-label" style="margin-top:16px;">Pattern 4 — Per response mode prompt tuning</div>
+      <pre><span class="cm"># Refine mode needs TWO templates: initial answer + refinement</span>
+<span class="var">initial_qa</span> = <span class="fn">PromptTemplate</span>(
+    <span class="str">"""Answer from context. Be concise.
+Context: {context_str}
+Question: {query_str}
+Answer:"""</span>
+)
+
+<span class="var">refine_tmpl</span> = <span class="fn">PromptTemplate</span>(
+    <span class="str">"""You have an existing answer: {existing_answer}
+New context to consider: {context_msg}
+Refine the answer if new info is relevant, otherwise keep existing.
+Refined answer:"""</span>
+)
+
+<span class="var">query_engine</span>.<span class="fn">update_prompts</span>({
+    <span class="str">"response_synthesizer:text_qa_template"</span>: <span class="var">initial_qa</span>,
+    <span class="str">"response_synthesizer:refine_template"</span>:  <span class="var">refine_tmpl</span>
+})</pre>
+
+      <div class="note note-teal">
+        <span class="icon">🔍</span>
+        <span>Always call <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">query_engine.get_prompts()</code> first to see the exact variable names used by LlamaIndex — use them exactly as shown so your custom template slots in correctly.</span>
+      </div>
+    </div>
+  </div>
+
+  <footer>LlamaIndex Notes · <span>Topic 14 of 19</span> · Prompt Engineering</footer>
+
+</div>
+</body>
+</html>

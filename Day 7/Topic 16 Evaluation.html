@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LlamaIndex — Topic 16: Evaluation</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --surface: #13161e;
+      --border: #1e2330;
+      --accent: #e11d48;
+      --accent2: #38bdf8;
+      --accent3: #4ade80;
+      --accent4: #a78bfa;
+      --accent5: #fbbf24;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --code-bg: #0a0c10;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      padding: 40px 20px 80px;
+    }
+
+    .page-wrap { max-width: 920px; margin: 0 auto; }
+
+    .header {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      margin-bottom: 48px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tag {
+      background: var(--accent);
+      color: #fff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 4px;
+      white-space: nowrap;
+      margin-top: 6px;
+    }
+
+    .header-text h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1; }
+    .header-text p  { color: var(--muted); font-size: 14px; margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 24px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: var(--accent); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(225,29,72,0.1);
+      border: 1px solid rgba(225,29,72,0.22);
+      padding: 3px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .card-header h2 { font-size: 16px; font-weight: 700; }
+    .card-body { padding: 20px 24px; }
+    .card-body p { font-size: 14px; color: #94a3b8; line-height: 1.7; margin-bottom: 14px; }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      line-height: 1.7;
+      margin: 10px 0;
+    }
+
+    .kw  { color: #38bdf8; }
+    .fn  { color: #f97316; }
+    .str { color: #4ade80; }
+    .cm  { color: #475569; font-style: italic; }
+    .var { color: #e2e8f0; }
+    .nv  { color: #a78bfa; }
+
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+      margin-top: 4px;
+    }
+
+    .kv-grid {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    .kv-key {
+      background: rgba(255,255,255,0.03);
+      padding: 10px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--accent);
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-val {
+      background: rgba(255,255,255,0.01);
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #94a3b8;
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-key:last-of-type, .kv-val:last-of-type { border-bottom: none; }
+
+    .note {
+      display: flex;
+      gap: 10px;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-top: 14px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .note-red    { background: rgba(225,29,72,0.07);  border: 1px solid rgba(225,29,72,0.22);  color: #fda4af; }
+    .note-green  { background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2);  color: #86efac; }
+    .note-blue   { background: rgba(56,189,248,0.07); border: 1px solid rgba(56,189,248,0.2);  color: #7dd3fc; }
+    .note-purple { background: rgba(167,139,250,0.07);border: 1px solid rgba(167,139,250,0.2); color: #c4b5fd; }
+    .note-yellow { background: rgba(251,191,36,0.07); border: 1px solid rgba(251,191,36,0.22); color: #fde68a; }
+    .note span.icon { font-size: 16px; flex-shrink: 0; }
+
+    /* Eval metric cards */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin: 14px 0;
+    }
+    .metric-card {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 12px;
+      text-align: center;
+      transition: border-color 0.2s;
+    }
+    .metric-card:hover { border-color: var(--accent); }
+    .mc-icon  { font-size: 22px; margin-bottom: 8px; }
+    .mc-name  { font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+    .mc-desc  { font-size: 11px; color: #64748b; line-height: 1.4; }
+    .mc-score {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 18px;
+      font-weight: 700;
+      margin: 8px 0 4px;
+    }
+
+    /* Score bar */
+    .score-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .score-label { font-size: 13px; color: #94a3b8; flex: 1; }
+    .score-bar-wrap {
+      width: 160px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 4px;
+      height: 10px;
+      flex-shrink: 0;
+    }
+    .score-bar { height: 100%; border-radius: 4px; }
+    .score-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--accent);
+      width: 36px;
+      text-align: right;
+    }
+
+    /* RAGAS diagram */
+    .ragas-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin: 14px 0;
+    }
+    .ragas-card {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px;
+    }
+    .ragas-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .ragas-tag {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 10px;
+    }
+    .rt-ret  { background: rgba(56,189,248,0.12); color: #38bdf8; border: 1px solid rgba(56,189,248,0.25); }
+    .rt-gen  { background: rgba(225,29,72,0.12);  color: #f43f5e; border: 1px solid rgba(225,29,72,0.25); }
+    .rt-e2e  { background: rgba(167,139,250,0.12); color: #a78bfa; border: 1px solid rgba(167,139,250,0.25); }
+    .ragas-formula {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: #64748b;
+      margin: 8px 0;
+      line-height: 1.5;
+    }
+    .ragas-desc { font-size: 12px; color: #64748b; line-height: 1.5; }
+
+    /* Two-col */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin: 12px 0;
+    }
+    .col-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    /* Eval pipeline flow */
+    .eval-flow {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 14px 0;
+      padding: 16px;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .ef-box {
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      text-align: center;
+    }
+    .ef-red    { background: rgba(225,29,72,0.1);  border: 1px solid rgba(225,29,72,0.25);  color: #fda4af; }
+    .ef-blue   { background: rgba(56,189,248,0.1); border: 1px solid rgba(56,189,248,0.25); color: #7dd3fc; }
+    .ef-green  { background: rgba(74,222,128,0.1); border: 1px solid rgba(74,222,128,0.25); color: #86efac; }
+    .ef-purple { background: rgba(167,139,250,0.1);border: 1px solid rgba(167,139,250,0.25);color: #c4b5fd; }
+    .ef-arrow  { color: var(--muted); font-size: 18px; }
+
+    footer {
+      margin-top: 60px;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    footer span { color: var(--accent); }
+
+    @media(max-width:680px){
+      .metric-grid { grid-template-columns: repeat(2,1fr); }
+      .ragas-grid  { grid-template-columns: 1fr; }
+      .two-col     { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="tag">TOPIC 16 / 19</div>
+    <div class="header-text">
+      <h1>Evaluation</h1>
+      <p>8 subtopics · #91 → #98 · Measure, benchmark &amp; improve RAG quality</p>
+    </div>
+  </div>
+
+
+  <!-- CARD 91 + 92 — Faithfulness + Relevancy -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#91 · #92</span>
+      <h2>Faithfulness &amp; Answer Relevancy Evaluators</h2>
+    </div>
+    <div class="card-body">
+      <p>The two most important RAG metrics. <strong>Faithfulness</strong> checks if the answer is grounded in the retrieved context (no hallucinations). <strong>Relevancy</strong> checks if the answer actually addresses the question.</p>
+
+      <div class="metric-grid">
+        <div class="metric-card" style="border-color:rgba(225,29,72,0.3);">
+          <div class="mc-icon">🎯</div>
+          <div class="mc-name">Faithfulness</div>
+          <div class="mc-score" style="color:#f43f5e;">0.0–1.0</div>
+          <div class="mc-desc">Is every claim in the answer supported by the retrieved context?</div>
+        </div>
+        <div class="metric-card" style="border-color:rgba(56,189,248,0.3);">
+          <div class="mc-icon">💬</div>
+          <div class="mc-name">Relevancy</div>
+          <div class="mc-score" style="color:#38bdf8;">0.0–1.0</div>
+          <div class="mc-desc">Does the answer address what was actually asked?</div>
+        </div>
+        <div class="metric-card" style="border-color:rgba(74,222,128,0.3);">
+          <div class="mc-icon">📄</div>
+          <div class="mc-name">Context Recall</div>
+          <div class="mc-score" style="color:#4ade80;">0.0–1.0</div>
+          <div class="mc-desc">Did retrieval find all the relevant context needed?</div>
+        </div>
+        <div class="metric-card" style="border-color:rgba(167,139,250,0.3);">
+          <div class="mc-icon">✅</div>
+          <div class="mc-name">Correctness</div>
+          <div class="mc-score" style="color:#a78bfa;">1–5</div>
+          <div class="mc-desc">Is the answer factually correct? Requires ground truth.</div>
+        </div>
+      </div>
+
+      <div class="section-label">Faithfulness evaluator (#91)</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core.evaluation</span> <span class="kw">import</span> <span class="fn">FaithfulnessEvaluator</span>
+<span class="kw">from</span> <span class="var">llama_index.llms.openai</span> <span class="kw">import</span> <span class="fn">OpenAI</span>
+
+<span class="cm"># Uses an LLM judge to check grounding</span>
+<span class="var">evaluator</span> = <span class="fn">FaithfulnessEvaluator</span>(llm=<span class="fn">OpenAI</span>(model=<span class="str">"gpt-4o"</span>))
+
+<span class="cm"># Get a query response first</span>
+<span class="var">response</span> = <span class="var">query_engine</span>.<span class="fn">query</span>(<span class="str">"What is our Q3 revenue?"</span>)
+
+<span class="cm"># Evaluate faithfulness</span>
+<span class="var">result</span> = <span class="kw">await</span> <span class="var">evaluator</span>.<span class="fn">aevaluate_response</span>(response=<span class="var">response</span>)
+
+<span class="fn">print</span>(<span class="var">result</span>.<span class="var">passing</span>)    <span class="cm"># True / False</span>
+<span class="fn">print</span>(<span class="var">result</span>.<span class="var">score</span>)      <span class="cm"># 0.0–1.0</span>
+<span class="fn">print</span>(<span class="var">result</span>.<span class="var">feedback</span>)   <span class="cm"># LLM explanation of why it passed/failed</span></pre>
+
+      <div class="section-label" style="margin-top:14px;">Relevancy evaluator (#92)</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core.evaluation</span> <span class="kw">import</span> <span class="fn">RelevancyEvaluator</span>
+
+<span class="var">evaluator</span> = <span class="fn">RelevancyEvaluator</span>(llm=<span class="fn">OpenAI</span>(model=<span class="str">"gpt-4o"</span>))
+
+<span class="var">result</span> = <span class="kw">await</span> <span class="var">evaluator</span>.<span class="fn">aevaluate_response</span>(
+    query=<span class="str">"What is our Q3 revenue?"</span>,
+    response=<span class="var">response</span>
+)
+
+<span class="fn">print</span>(<span class="var">result</span>.<span class="var">passing</span>)    <span class="cm"># True if answer is relevant</span>
+<span class="fn">print</span>(<span class="var">result</span>.<span class="var">feedback</span>)   <span class="cm"># LLM explanation</span>
+
+<span class="cm"># Batch evaluate across many queries</span>
+<span class="kw">from</span> <span class="var">llama_index.core.evaluation</span> <span class="kw">import</span> <span class="fn">BatchEvalRunner</span>
+
+<span class="var">runner</span> = <span class="fn">BatchEvalRunner</span>(
+    evaluators={<span class="str">"faithfulness"</span>: <span class="fn">FaithfulnessEvaluator</span>(),
+                <span class="str">"relevancy"</span>:    <span class="fn">RelevancyEvaluator</span>()},
+    workers=<span class="nv">4</span>    <span class="cm"># parallel eval workers</span>
+)
+<span class="var">results</span> = <span class="kw">await</span> <span class="var">runner</span>.<span class="fn">aevaluate_queries</span>(
+    query_engine=<span class="var">query_engine</span>,
+    queries=<span class="var">test_questions</span>
+)</pre>
+
+      <div class="note note-red">
+        <span class="icon">⚠️</span>
+        <span><strong>Faithfulness below 0.8</strong> means your RAG is hallucinating — the LLM is adding information not in the retrieved context. Fix by improving retrieval (get better chunks) or tightening the system prompt.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 93 — Context Recall + Correctness -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#93</span>
+      <h2>Context Recall &amp; Answer Correctness</h2>
+    </div>
+    <div class="card-body">
+      <p>Context Recall measures whether retrieval found all the relevant information. Correctness compares the answer to a ground-truth answer — both require a labeled evaluation dataset.</p>
+
+      <div class="section-label">Context evaluator — did retrieval find what it needed?</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core.evaluation</span> <span class="kw">import</span> <span class="fn">ContextRelevancyEvaluator</span>
+
+<span class="var">context_eval</span> = <span class="fn">ContextRelevancyEvaluator</span>(llm=<span class="fn">OpenAI</span>(model=<span class="str">"gpt-4o"</span>))
+
+<span class="cm"># Checks: are the retrieved nodes relevant to the query?</span>
+<span class="var">result</span> = <span class="kw">await</span> <span class="var">context_eval</span>.<span class="fn">aevaluate_response</span>(
+    query=<span class="str">"What were the key risks in Q3?"</span>,
+    response=<span class="var">response</span>
+)
+
+<span class="cm"># Per-node scores — see which chunks were actually useful</span>
+<span class="kw">for</span> <span class="var">node_result</span> <span class="kw">in</span> <span class="var">result</span>.<span class="var">source_nodes</span>:
+    <span class="fn">print</span>(<span class="fn">f</span><span class="str">"Node: {node_result.node.text[:80]}..."</span>)
+    <span class="fn">print</span>(<span class="fn">f</span><span class="str">"Relevant: {node_result.score}"</span>)</pre>
+
+      <div class="section-label" style="margin-top:14px;">Answer correctness — requires ground truth</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core.evaluation</span> <span class="kw">import</span> <span class="fn">CorrectnessEvaluator</span>
+
+<span class="var">correctness_eval</span> = <span class="fn">CorrectnessEvaluator</span>(llm=<span class="fn">OpenAI</span>(model=<span class="str">"gpt-4o"</span>))
+
+<span class="cm"># Need a reference answer to compare against</span>
+<span class="var">result</span> = <span class="kw">await</span> <span class="var">correctness_eval</span>.<span class="fn">aevaluate</span>(
+    query=<span class="str">"What was Q3 revenue?"</span>,
+    response=<span class="str">"Q3 revenue was $4.2M"</span>,
+    reference=<span class="str">"Q3 2024 revenue was $4.2 million, a 18% increase from Q2."</span>
+)
+
+<span class="fn">print</span>(<span class="var">result</span>.<span class="var">score</span>)     <span class="cm"># 1–5 scale</span>
+<span class="fn">print</span>(<span class="var">result</span>.<span class="var">feedback</span>)  <span class="cm"># "Answer is correct but missing the growth %"</span></pre>
+
+      <div class="note note-blue">
+        <span class="icon">💡</span>
+        <span>Context Recall diagnoses <strong>retrieval</strong> problems. Low context recall = wrong chunks retrieved. Fix by trying larger top_k, hybrid search, or better metadata filtering.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 94 + 95 — Dataset Generation + RAGAS -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#94 · #95</span>
+      <h2>Synthetic Dataset Generation &amp; RAGAS</h2>
+    </div>
+    <div class="card-body">
+      <p>You need test questions to run evaluations — but creating them manually is slow. LlamaIndex can generate synthetic (question, context, answer) triples from your documents automatically. RAGAS is a framework that bundles multiple metrics into one evaluation pipeline.</p>
+
+      <div class="section-label">Generate synthetic Q&A dataset from documents (#94)</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core.evaluation</span> <span class="kw">import</span> <span class="fn">DatasetGenerator</span>
+
+<span class="cm"># Generate test questions from your actual documents</span>
+<span class="var">generator</span> = <span class="fn">DatasetGenerator</span>.<span class="fn">from_documents</span>(
+    <span class="var">documents</span>,
+    num_questions_per_chunk=<span class="nv">3</span>,
+    llm=<span class="fn">OpenAI</span>(model=<span class="str">"gpt-4o"</span>)
+)
+
+<span class="var">eval_dataset</span> = <span class="kw">await</span> <span class="var">generator</span>.<span class="fn">agenerate_dataset_from_nodes</span>()
+
+<span class="cm"># Dataset contains: questions, contexts, reference answers</span>
+<span class="fn">print</span>(<span class="var">eval_dataset</span>.<span class="var">questions</span>[:3])
+<span class="cm"># ["What was Q3 revenue?", "Who are our top customers?", ...]</span>
+
+<span class="cm"># Save for reuse</span>
+<span class="var">eval_dataset</span>.<span class="fn">save_json</span>(<span class="str">"eval_dataset.json"</span>)
+<span class="var">eval_dataset</span> = <span class="fn">EmbeddingQAFinetuneDataset</span>.<span class="fn">from_json</span>(<span class="str">"eval_dataset.json"</span>)</pre>
+
+      <div class="section-label" style="margin-top:14px;">RAGAS — multi-metric RAG evaluation (#95)</div>
+      <p>RAGAS (Retrieval Augmented Generation Assessment) is the most popular framework for holistic RAG evaluation. It combines faithfulness, answer relevance, context precision and recall in one automated pipeline.</p>
+
+      <div class="ragas-grid">
+        <div class="ragas-card">
+          <div class="ragas-name">Faithfulness <span class="ragas-tag rt-gen">Generation</span></div>
+          <div class="ragas-formula">Claims in answer ÷ Total claims<br/>verified in retrieved context</div>
+          <div class="ragas-desc">Measures hallucination rate. 1.0 = every claim is supported.</div>
+        </div>
+        <div class="ragas-card">
+          <div class="ragas-name">Answer Relevance <span class="ragas-tag rt-gen">Generation</span></div>
+          <div class="ragas-formula">avg cosine_sim(generated_questions,<br/>original_question)</div>
+          <div class="ragas-desc">Reverse-generates questions from answer — checks if answer fits the question.</div>
+        </div>
+        <div class="ragas-card">
+          <div class="ragas-name">Context Precision <span class="ragas-tag rt-ret">Retrieval</span></div>
+          <div class="ragas-formula">Relevant nodes in top-k ÷ Total<br/>nodes retrieved</div>
+          <div class="ragas-desc">Measures retrieval signal-to-noise. Low = too much irrelevant context sent to LLM.</div>
+        </div>
+        <div class="ragas-card">
+          <div class="ragas-name">Context Recall <span class="ragas-tag rt-ret">Retrieval</span></div>
+          <div class="ragas-formula">Ground truth claims found in<br/>context ÷ Total ground truth claims</div>
+          <div class="ragas-desc">Did retrieval find everything needed? Low = relevant info missed.</div>
+        </div>
+      </div>
+
+      <pre><span class="fn">pip install</span> <span class="str">ragas</span>
+
+<span class="kw">from</span> <span class="var">ragas</span> <span class="kw">import</span> <span class="fn">evaluate</span>
+<span class="kw">from</span> <span class="var">ragas.metrics</span> <span class="kw">import</span> <span class="fn">faithfulness</span>, <span class="fn">answer_relevancy</span>, <span class="fn">context_precision</span>, <span class="fn">context_recall</span>
+<span class="kw">from</span> <span class="var">datasets</span> <span class="kw">import</span> <span class="fn">Dataset</span>
+
+<span class="cm"># Build evaluation dataset</span>
+<span class="var">eval_data</span> = {
+    <span class="str">"question"</span>:  [<span class="str">"What is Q3 revenue?"</span>, ...],
+    <span class="str">"answer"</span>:    [<span class="var">response</span>.<span class="var">response</span>, ...],
+    <span class="str">"contexts"</span>:  [[<span class="var">n</span>.<span class="var">text</span> <span class="kw">for</span> <span class="var">n</span> <span class="kw">in</span> <span class="var">response</span>.<span class="var">source_nodes</span>], ...],
+    <span class="str">"ground_truth"</span>: [<span class="str">"Q3 revenue was $4.2M"</span>, ...]
+}
+
+<span class="var">dataset</span> = <span class="fn">Dataset</span>.<span class="fn">from_dict</span>(<span class="var">eval_data</span>)
+
+<span class="cm"># Run all RAGAS metrics at once</span>
+<span class="var">scores</span> = <span class="fn">evaluate</span>(
+    dataset,
+    metrics=[<span class="fn">faithfulness</span>, <span class="fn">answer_relevancy</span>, <span class="fn">context_precision</span>, <span class="fn">context_recall</span>]
+)
+<span class="fn">print</span>(<span class="var">scores</span>)
+<span class="cm"># {'faithfulness': 0.91, 'answer_relevancy': 0.87,</span>
+<span class="cm">#  'context_precision': 0.78, 'context_recall': 0.85}</span></pre>
+
+      <div class="note note-yellow">
+        <span class="icon">📊</span>
+        <span><strong>Target scores:</strong> Faithfulness &gt; 0.85, Answer Relevancy &gt; 0.80, Context Precision &gt; 0.75, Context Recall &gt; 0.80. These are reasonable baselines — tune based on your domain's requirements.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 96 + 97 + 98 — Embedding eval + Pairwise + CI -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#96 · #97 · #98</span>
+      <h2>Embedding Quality · Pairwise Comparison · CI/CD Regression</h2>
+    </div>
+    <div class="card-body">
+
+      <div class="section-label">Embedding retrieval quality (#96)</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core.evaluation</span> <span class="kw">import</span> <span class="fn">EmbeddingQAFinetuneDataset</span>, <span class="fn">RetrieverEvaluator</span>
+
+<span class="cm"># Generate QA pairs specifically for retrieval evaluation</span>
+<span class="var">qa_dataset</span> = <span class="fn">EmbeddingQAFinetuneDataset</span>.<span class="fn">from_json</span>(<span class="str">"qa_dataset.json"</span>)
+
+<span class="cm"># Evaluate retriever — hit_rate and MRR</span>
+<span class="var">retriever_eval</span> = <span class="fn">RetrieverEvaluator</span>.<span class="fn">from_metric_names</span>(
+    [<span class="str">"mrr"</span>, <span class="str">"hit_rate"</span>],
+    retriever=<span class="var">index</span>.<span class="fn">as_retriever</span>(similarity_top_k=<span class="nv">5</span>)
+)
+
+<span class="var">results</span> = <span class="kw">await</span> <span class="var">retriever_eval</span>.<span class="fn">aevaluate_dataset</span>(<span class="var">qa_dataset</span>)
+<span class="fn">print</span>(<span class="fn">f</span><span class="str">"Hit Rate: {results.hit_rate:.3f}"</span>)  <span class="cm"># % queries where correct doc is in top-k</span>
+<span class="fn">print</span>(<span class="fn">f</span><span class="str">"MRR:      {results.mrr:.3f}"</span>)       <span class="cm"># Mean Reciprocal Rank</span></pre>
+
+      <div class="section-label" style="margin-top:16px;">Pairwise comparison — A vs B (#97)</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core.evaluation</span> <span class="kw">import</span> <span class="fn">PairwiseComparisonEvaluator</span>
+
+<span class="var">pairwise_eval</span> = <span class="fn">PairwiseComparisonEvaluator</span>(llm=<span class="fn">OpenAI</span>(model=<span class="str">"gpt-4o"</span>))
+
+<span class="cm"># Compare two query engines / RAG configurations head-to-head</span>
+<span class="var">response_a</span> = <span class="var">engine_a</span>.<span class="fn">query</span>(<span class="var">query</span>)  <span class="cm"># e.g. top_k=3, no reranker</span>
+<span class="var">response_b</span> = <span class="var">engine_b</span>.<span class="fn">query</span>(<span class="var">query</span>)  <span class="cm"># e.g. top_k=20, Cohere reranker</span>
+
+<span class="var">result</span> = <span class="kw">await</span> <span class="var">pairwise_eval</span>.<span class="fn">aevaluate</span>(
+    query=<span class="var">query</span>,
+    response=<span class="var">str</span>(<span class="var">response_a</span>),
+    second_response=<span class="var">str</span>(<span class="var">response_b</span>)
+)
+
+<span class="fn">print</span>(<span class="var">result</span>.<span class="var">score</span>)    <span class="cm"># 1.0 if A wins, 0.0 if B wins, 0.5 if tie</span>
+<span class="fn">print</span>(<span class="var">result</span>.<span class="var">feedback</span>)  <span class="cm"># "Response B is more comprehensive..."</span></pre>
+
+      <div class="section-label" style="margin-top:16px;">Eval pipeline for CI/CD (#98)</div>
+      <p>Run evals automatically on every code change to catch regressions before they reach production.</p>
+      <pre><span class="cm"># ci_eval.py — run in CI pipeline (GitHub Actions, etc.)</span>
+<span class="kw">import</span> <span class="var">asyncio</span>, <span class="var">json</span>, <span class="var">sys</span>
+
+<span class="kw">async def</span> <span class="fn">run_regression_eval</span>():
+    <span class="cm"># Load golden eval dataset (checked into repo)</span>
+    <span class="var">questions</span> = <span class="var">json</span>.<span class="fn">load</span>(<span class="fn">open</span>(<span class="str">"tests/eval_dataset.json"</span>))
+
+    <span class="var">runner</span> = <span class="fn">BatchEvalRunner</span>(
+        evaluators={<span class="str">"faithfulness"</span>: <span class="fn">FaithfulnessEvaluator</span>(),
+                    <span class="str">"relevancy"</span>:    <span class="fn">RelevancyEvaluator</span>()},
+        workers=<span class="nv">8</span>
+    )
+    <span class="var">results</span> = <span class="kw">await</span> <span class="var">runner</span>.<span class="fn">aevaluate_queries</span>(
+        query_engine=<span class="var">query_engine</span>,
+        queries=<span class="var">questions</span>[<span class="str">"questions"</span>]
+    )
+
+    <span class="cm"># Assert minimum quality thresholds</span>
+    <span class="var">avg_faith</span> = <span class="fn">sum</span>(<span class="var">r</span>.<span class="var">score</span> <span class="kw">for</span> <span class="var">r</span> <span class="kw">in</span> <span class="var">results</span>[<span class="str">"faithfulness"</span>]) / <span class="fn">len</span>(<span class="var">results</span>[<span class="str">"faithfulness"</span>])
+
+    <span class="kw">if</span> <span class="var">avg_faith</span> < <span class="nv">0.80</span>:
+        <span class="fn">print</span>(<span class="fn">f</span><span class="str">"❌ REGRESSION: faithfulness={avg_faith:.3f} (threshold: 0.80)"</span>)
+        <span class="var">sys</span>.<span class="fn">exit</span>(<span class="nv">1</span>)
+
+    <span class="fn">print</span>(<span class="fn">f</span><span class="str">"✅ PASS: faithfulness={avg_faith:.3f}"</span>)
+
+<span class="var">asyncio</span>.<span class="fn">run</span>(<span class="fn">run_regression_eval</span>())</pre>
+
+      <div class="section-label" style="margin-top:14px;">Score interpretation guide</div>
+      <div class="score-row">
+        <span class="score-label">Faithfulness</span>
+        <div class="score-bar-wrap"><div class="score-bar" style="width:91%;background:linear-gradient(90deg,#4ade80,#22c55e);"></div></div>
+        <span class="score-num">0.91</span>
+      </div>
+      <div class="score-row">
+        <span class="score-label">Answer Relevancy</span>
+        <div class="score-bar-wrap"><div class="score-bar" style="width:87%;background:linear-gradient(90deg,#4ade80,#22c55e);"></div></div>
+        <span class="score-num">0.87</span>
+      </div>
+      <div class="score-row">
+        <span class="score-label">Context Precision</span>
+        <div class="score-bar-wrap"><div class="score-bar" style="width:78%;background:linear-gradient(90deg,#fbbf24,#f59e0b);"></div></div>
+        <span class="score-num">0.78</span>
+      </div>
+      <div class="score-row">
+        <span class="score-label">Context Recall</span>
+        <div class="score-bar-wrap"><div class="score-bar" style="width:85%;background:linear-gradient(90deg,#4ade80,#22c55e);"></div></div>
+        <span class="score-num">0.85</span>
+      </div>
+      <div class="score-row">
+        <span class="score-label">Hit Rate (Retrieval)</span>
+        <div class="score-bar-wrap"><div class="score-bar" style="width:82%;background:linear-gradient(90deg,#4ade80,#22c55e);"></div></div>
+        <span class="score-num">0.82</span>
+      </div>
+      <div class="score-row" style="margin-bottom:0;">
+        <span class="score-label">MRR (Retrieval)</span>
+        <div class="score-bar-wrap"><div class="score-bar" style="width:71%;background:linear-gradient(90deg,#fbbf24,#f59e0b);"></div></div>
+        <span class="score-num">0.71</span>
+      </div>
+
+      <div class="kv-grid" style="margin-top:14px;">
+        <div class="kv-key">Score ≥ 0.85</div>
+        <div class="kv-val">✅ Good. Production-ready for most use cases.</div>
+        <div class="kv-key">Score 0.70–0.85</div>
+        <div class="kv-val">⚠️ Acceptable. Investigate weak areas before shipping.</div>
+        <div class="kv-key">Score &lt; 0.70</div>
+        <div class="kv-val">❌ Poor. Do not ship. Fix chunking, retrieval, or prompts.</div>
+      </div>
+
+      <div class="note note-purple">
+        <span class="icon">🔄</span>
+        <span><strong>The eval loop:</strong> Generate synthetic dataset → run RAGAS → identify lowest metric → fix that layer (retrieval / prompt / chunking) → re-evaluate → ship. Never deploy without a baseline eval score.</span>
+      </div>
+    </div>
+  </div>
+
+  <footer>LlamaIndex Notes · <span>Topic 16 of 19</span> · Evaluation</footer>
+
+</div>
+</body>
+</html>

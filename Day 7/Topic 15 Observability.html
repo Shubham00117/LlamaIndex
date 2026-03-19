@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LlamaIndex — Topic 15: Observability</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --surface: #13161e;
+      --border: #1e2330;
+      --accent: #fb923c;
+      --accent2: #38bdf8;
+      --accent3: #4ade80;
+      --accent4: #a78bfa;
+      --accent5: #fb7185;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --code-bg: #0a0c10;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      padding: 40px 20px 80px;
+    }
+
+    .page-wrap { max-width: 900px; margin: 0 auto; }
+
+    .header {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      margin-bottom: 48px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tag {
+      background: var(--accent);
+      color: #0d0f14;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 4px;
+      white-space: nowrap;
+      margin-top: 6px;
+    }
+
+    .header-text h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1; }
+    .header-text p  { color: var(--muted); font-size: 14px; margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 24px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: var(--accent); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(251,146,60,0.1);
+      border: 1px solid rgba(251,146,60,0.22);
+      padding: 3px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .card-header h2 { font-size: 16px; font-weight: 700; }
+    .card-body { padding: 20px 24px; }
+    .card-body p { font-size: 14px; color: #94a3b8; line-height: 1.7; margin-bottom: 14px; }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      line-height: 1.7;
+      margin: 10px 0;
+    }
+
+    .kw  { color: #38bdf8; }
+    .fn  { color: #f97316; }
+    .str { color: #4ade80; }
+    .cm  { color: #475569; font-style: italic; }
+    .var { color: #e2e8f0; }
+    .nv  { color: #a78bfa; }
+
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+      margin-top: 4px;
+    }
+
+    .kv-grid {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    .kv-key {
+      background: rgba(255,255,255,0.03);
+      padding: 10px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--accent);
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-val {
+      background: rgba(255,255,255,0.01);
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #94a3b8;
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-key:last-of-type, .kv-val:last-of-type { border-bottom: none; }
+
+    .note {
+      display: flex;
+      gap: 10px;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-top: 14px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .note-orange { background: rgba(251,146,60,0.07); border: 1px solid rgba(251,146,60,0.22); color: #fed7aa; }
+    .note-green  { background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2);  color: #86efac; }
+    .note-blue   { background: rgba(56,189,248,0.07); border: 1px solid rgba(56,189,248,0.2);  color: #7dd3fc; }
+    .note-purple { background: rgba(167,139,250,0.07);border: 1px solid rgba(167,139,250,0.2); color: #c4b5fd; }
+    .note-pink   { background: rgba(251,113,133,0.07);border: 1px solid rgba(251,113,133,0.22);color: #fda4af; }
+    .note span.icon { font-size: 16px; flex-shrink: 0; }
+
+    /* Trace diagram */
+    .trace-diagram {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin: 14px 0;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+    }
+    .trace-root {
+      color: var(--accent);
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+    .trace-child {
+      color: #94a3b8;
+      padding-left: 24px;
+      position: relative;
+      margin-bottom: 4px;
+    }
+    .trace-child::before {
+      content: '├─ ';
+      position: absolute;
+      left: 6px;
+      color: var(--muted);
+    }
+    .trace-grandchild {
+      color: #64748b;
+      padding-left: 48px;
+      position: relative;
+      margin-bottom: 4px;
+    }
+    .trace-grandchild::before {
+      content: '└─ ';
+      position: absolute;
+      left: 30px;
+      color: #334155;
+    }
+    .trace-time {
+      color: var(--accent);
+      font-size: 10px;
+      margin-left: 8px;
+    }
+    .trace-token {
+      color: #4ade80;
+      font-size: 10px;
+      margin-left: 6px;
+    }
+
+    /* Tool cards */
+    .tool-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin: 14px 0;
+    }
+    .tool-card {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      transition: border-color 0.2s;
+    }
+    .tool-card:hover { border-color: var(--accent); }
+    .tc-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    .tc-icon { font-size: 20px; }
+    .tc-name { font-family: 'JetBrains Mono', monospace; font-size: 13px; font-weight: 700; }
+    .tc-tag {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      padding: 2px 7px;
+      border-radius: 10px;
+      margin-left: auto;
+    }
+    .tt-free { background: rgba(74,222,128,0.12); color: #4ade80; border: 1px solid rgba(74,222,128,0.25); }
+    .tt-paid { background: rgba(251,146,60,0.12); color: #fb923c; border: 1px solid rgba(251,146,60,0.25); }
+    .tt-oss  { background: rgba(56,189,248,0.10); color: #38bdf8; border: 1px solid rgba(56,189,248,0.25); }
+    .tc-desc { font-size: 12px; color: #64748b; line-height: 1.5; margin-bottom: 10px; }
+
+    /* Metrics dashboard mockup */
+    .metrics-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin: 14px 0;
+    }
+    .metric-card {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+    .metric-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    .metric-label { font-size: 11px; color: #64748b; }
+
+    /* Two-col */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin: 12px 0;
+    }
+    .col-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    footer {
+      margin-top: 60px;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    footer span { color: var(--accent); }
+
+    @media(max-width:680px){
+      .tool-grid   { grid-template-columns: 1fr; }
+      .metrics-row { grid-template-columns: repeat(2,1fr); }
+      .two-col     { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="tag">TOPIC 15 / 19</div>
+    <div class="header-text">
+      <h1>Observability</h1>
+      <p>4 subtopics · #87 → #90 · Tracing, callbacks, cost tracking &amp; LlamaCloud</p>
+    </div>
+  </div>
+
+
+  <!-- CARD 87 — Callbacks & LlamaDebugHandler -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#87</span>
+      <h2>Callbacks &amp; LlamaDebugHandler</h2>
+    </div>
+    <div class="card-body">
+      <p>LlamaIndex fires callback events at every stage of the pipeline — LLM calls, embeddings, retrieval, chunking. The <code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent)">LlamaDebugHandler</code> captures all of them for inspection during development.</p>
+
+      <div class="section-label">What a trace looks like</div>
+      <div class="trace-diagram">
+        <div class="trace-root">▶ query("What is our cash position?") <span class="trace-time">1.84s</span> <span class="trace-token">↑ 892 tokens ↓ 143 tokens</span></div>
+        <div class="trace-child">retrieve() <span class="trace-time">0.31s</span></div>
+        <div class="trace-grandchild">embed_query() — text-embedding-3-small <span class="trace-time">0.12s</span></div>
+        <div class="trace-grandchild">vector_search(top_k=5) <span class="trace-time">0.19s</span></div>
+        <div class="trace-child">rerank() — cohere-rerank-v3 <span class="trace-time">0.08s</span></div>
+        <div class="trace-child">synthesize() — gpt-4o <span class="trace-time">1.45s</span></div>
+        <div class="trace-grandchild">text_qa_template rendered → 892 tokens</div>
+        <div class="trace-grandchild">LLM completion → 143 tokens · $0.0031</div>
+      </div>
+
+      <div class="section-label">Setup</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core.callbacks</span> <span class="kw">import</span> <span class="fn">CallbackManager</span>, <span class="fn">LlamaDebugHandler</span>
+<span class="kw">from</span> <span class="var">llama_index.core</span> <span class="kw">import</span> <span class="fn">Settings</span>
+
+<span class="cm"># Set up debug handler</span>
+<span class="var">debug_handler</span> = <span class="fn">LlamaDebugHandler</span>(print_trace_on_end=<span class="nv">True</span>)
+<span class="fn">Settings</span>.callback_manager = <span class="fn">CallbackManager</span>([<span class="var">debug_handler</span>])
+
+<span class="cm"># Run any query — debug output printed automatically</span>
+<span class="var">response</span> = <span class="var">query_engine</span>.<span class="fn">query</span>(<span class="str">"What is our cash position?"</span>)
+
+<span class="cm"># Inspect events programmatically</span>
+<span class="cm"># All LLM calls with inputs and outputs</span>
+<span class="var">llm_pairs</span> = <span class="var">debug_handler</span>.<span class="fn">get_llm_inputs_outputs</span>()
+<span class="kw">for</span> <span class="var">pair</span> <span class="kw">in</span> <span class="var">llm_pairs</span>:
+    <span class="fn">print</span>(<span class="str">"Prompt tokens:"</span>, <span class="var">pair</span>[<span class="nv">0</span>].<span class="var">payload</span>.<span class="fn">get</span>(<span class="str">"serialized"</span>))
+    <span class="fn">print</span>(<span class="str">"Response:"</span>,      <span class="var">pair</span>[<span class="nv">1</span>].<span class="var">payload</span>.<span class="fn">get</span>(<span class="str">"response"</span>))
+
+<span class="cm"># All events by type</span>
+<span class="var">events</span> = <span class="var">debug_handler</span>.<span class="fn">get_events</span>()  <span class="cm"># returns all captured events</span>
+<span class="var">debug_handler</span>.<span class="fn">flush_event_logs</span>()     <span class="cm"># clear between queries</span></pre>
+
+      <div class="kv-grid">
+        <div class="kv-key">CBEventType.LLM</div>
+        <div class="kv-val">Every LLM call — prompt, response, token counts</div>
+        <div class="kv-key">CBEventType.EMBEDDING</div>
+        <div class="kv-val">Every embed call — text, model, latency</div>
+        <div class="kv-key">CBEventType.RETRIEVE</div>
+        <div class="kv-val">Retrieval calls — query, nodes returned, scores</div>
+        <div class="kv-key">CBEventType.SYNTHESIZE</div>
+        <div class="kv-val">Response synthesis — context sent, output generated</div>
+        <div class="kv-key">CBEventType.CHUNKING</div>
+        <div class="kv-val">Text splitting events — chunk sizes, overlap</div>
+      </div>
+
+      <div class="note note-orange">
+        <span class="icon">🔧</span>
+        <span>Use <strong>LlamaDebugHandler</strong> during development to understand exactly what's happening inside your pipeline — prompts sent, tokens used, latency per step. Disable in production.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 88 — Token counting & cost tracking -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#88</span>
+      <h2>Token Counting &amp; Cost Tracking</h2>
+    </div>
+    <div class="card-body">
+      <p>Every LLM and embedding call costs tokens (and money). The <code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent)">TokenCountingHandler</code> accumulates exact token counts so you can estimate costs before and monitor spend in production.</p>
+
+      <div class="section-label">Setup token counting</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core.callbacks</span> <span class="kw">import</span> <span class="fn">TokenCountingHandler</span>
+<span class="kw">import</span> <span class="var">tiktoken</span>
+
+<span class="var">token_counter</span> = <span class="fn">TokenCountingHandler</span>(
+    tokenizer=<span class="var">tiktoken</span>.<span class="fn">encoding_for_model</span>(<span class="str">"gpt-4o"</span>).<span class="var">encode</span>
+)
+
+<span class="fn">Settings</span>.callback_manager = <span class="fn">CallbackManager</span>([<span class="var">token_counter</span>])
+
+<span class="cm"># Run queries...</span>
+<span class="var">response</span> = <span class="var">query_engine</span>.<span class="fn">query</span>(<span class="str">"Summarize the annual report"</span>)
+
+<span class="cm"># Read token stats</span>
+<span class="fn">print</span>(<span class="fn">f</span><span class="str">"LLM prompt tokens:     {token_counter.prompt_llm_token_count}"</span>)
+<span class="fn">print</span>(<span class="fn">f</span><span class="str">"LLM completion tokens: {token_counter.completion_llm_token_count}"</span>)
+<span class="fn">print</span>(<span class="fn">f</span><span class="str">"Embedding tokens:      {token_counter.total_embedding_token_count}"</span>)
+<span class="fn">print</span>(<span class="fn">f</span><span class="str">"Total LLM tokens:      {token_counter.total_llm_token_count}"</span>)
+
+<span class="cm"># Compute approximate cost (GPT-4o rates)</span>
+<span class="var">prompt_cost</span>     = <span class="var">token_counter</span>.<span class="var">prompt_llm_token_count</span>     / <span class="nv">1_000_000</span> * <span class="nv">2.50</span>
+<span class="var">completion_cost</span> = <span class="var">token_counter</span>.<span class="var">completion_llm_token_count</span> / <span class="nv">1_000_000</span> * <span class="nv">10.00</span>
+<span class="fn">print</span>(<span class="fn">f</span><span class="str">"Estimated cost: ${prompt_cost + completion_cost:.5f}"</span>)</pre>
+
+      <div class="section-label" style="margin-top:14px;">Key cost metrics dashboard</div>
+      <div class="metrics-row">
+        <div class="metric-card">
+          <div class="metric-val" style="color:#fb923c;">892</div>
+          <div class="metric-label">Prompt tokens</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-val" style="color:#4ade80;">143</div>
+          <div class="metric-label">Output tokens</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-val" style="color:#38bdf8;">1,035</div>
+          <div class="metric-label">Total tokens</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-val" style="color:#a78bfa;">$0.004</div>
+          <div class="metric-label">Query cost</div>
+        </div>
+      </div>
+
+      <div class="note note-green">
+        <span class="icon">💰</span>
+        <span>Track token counts during dev to estimate production costs. 1000 daily queries × 1000 tokens × GPT-4o price = ~$2.50/day. Switch to <strong>gpt-4o-mini</strong> to cut this by ~10×.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 89 — Arize Phoenix / Tracing tools -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#89</span>
+      <h2>Tracing Tools — Phoenix, LangSmith &amp; OpenTelemetry</h2>
+    </div>
+    <div class="card-body">
+      <p>Production observability requires a dedicated tracing backend that captures every query, retrieval, and LLM call with latency, token counts, and full payloads — visualized in a UI for debugging and monitoring.</p>
+
+      <div class="tool-grid">
+        <div class="tool-card">
+          <div class="tc-head">
+            <span class="tc-icon">🔥</span>
+            <span class="tc-name">Arize Phoenix</span>
+            <span class="tc-tag tt-free">Free / OSS</span>
+          </div>
+          <div class="tc-desc">Purpose-built for LLM observability. Best LlamaIndex integration. Self-hosted or cloud. Visualizes traces, evals, token costs in real time.</div>
+          <pre style="margin:0;font-size:11px;"><span class="fn">pip install</span> <span class="str">arize-phoenix openinference-instrumentation-llama-index</span>
+
+<span class="kw">import</span> <span class="var">phoenix</span> <span class="kw">as</span> <span class="var">px</span>
+<span class="kw">from</span> <span class="var">openinference.instrumentation.llama_index</span> <span class="kw">import</span> <span class="fn">LlamaIndexInstrumentor</span>
+<span class="kw">from</span> <span class="var">opentelemetry.sdk.trace.export</span> <span class="kw">import</span> <span class="fn">SimpleSpanProcessor</span>
+
+<span class="cm"># Launch Phoenix UI at localhost:6006</span>
+<span class="var">session</span> = <span class="var">px</span>.<span class="fn">launch_app</span>()
+
+<span class="cm"># Auto-instrument all LlamaIndex calls</span>
+<span class="fn">LlamaIndexInstrumentor</span>().<span class="fn">instrument</span>(
+    tracer_provider=<span class="fn">register</span>(project_name=<span class="str">"my-rag-app"</span>)
+)
+
+<span class="cm"># All queries now traced automatically</span></pre>
+        </div>
+        <div class="tool-card">
+          <div class="tc-head">
+            <span class="tc-icon">🦜</span>
+            <span class="tc-name">LangSmith</span>
+            <span class="tc-tag tt-paid">Paid</span>
+          </div>
+          <div class="tc-desc">LangChain's tracing platform. Works with LlamaIndex via OpenTelemetry. Good if your team already uses LangSmith for other projects.</div>
+          <pre style="margin:0;font-size:11px;"><span class="fn">pip install</span> <span class="str">llama-index-callbacks-langfuse</span>
+
+<span class="kw">from</span> <span class="var">langfuse.llama_index</span> <span class="kw">import</span> <span class="fn">LlamaIndexInstrumentor</span>
+<span class="kw">import</span> <span class="var">os</span>
+
+<span class="var">os</span>.<span class="var">environ</span>[<span class="str">"LANGFUSE_PUBLIC_KEY"</span>] = <span class="str">"pk-..."</span>
+<span class="var">os</span>.<span class="var">environ</span>[<span class="str">"LANGFUSE_SECRET_KEY"</span>] = <span class="str">"sk-..."</span>
+
+<span class="var">instrumentor</span> = <span class="fn">LlamaIndexInstrumentor</span>()
+<span class="var">instrumentor</span>.<span class="fn">start</span>()
+<span class="cm"># All queries auto-traced to Langfuse dashboard</span></pre>
+        </div>
+        <div class="tool-card">
+          <div class="tc-head">
+            <span class="tc-icon">📡</span>
+            <span class="tc-name">OpenTelemetry</span>
+            <span class="tc-tag tt-oss">OSS standard</span>
+          </div>
+          <div class="tc-desc">Industry-standard tracing protocol. Send traces to any OTLP backend: Jaeger, Grafana Tempo, Datadog, Honeycomb, etc.</div>
+          <pre style="margin:0;font-size:11px;"><span class="fn">pip install</span> <span class="str">openinference-instrumentation-llama-index</span>
+<span class="fn">pip install</span> <span class="str">opentelemetry-exporter-otlp</span>
+
+<span class="kw">from</span> <span class="var">opentelemetry.exporter.otlp.proto.http.trace_exporter</span> <span class="kw">import</span> <span class="fn">OTLPSpanExporter</span>
+<span class="kw">from</span> <span class="var">opentelemetry.sdk.trace</span> <span class="kw">import</span> <span class="fn">TracerProvider</span>
+
+<span class="cm"># Export to any OTLP-compatible backend</span>
+<span class="var">exporter</span> = <span class="fn">OTLPSpanExporter</span>(endpoint=<span class="str">"http://jaeger:4318/v1/traces"</span>)
+
+<span class="fn">LlamaIndexInstrumentor</span>().<span class="fn">instrument</span>(
+    tracer_provider=<span class="fn">TracerProvider</span>()
+)</pre>
+        </div>
+        <div class="tool-card">
+          <div class="tc-head">
+            <span class="tc-icon">🔎</span>
+            <span class="tc-name">Langfuse</span>
+            <span class="tc-tag tt-free">Free tier</span>
+          </div>
+          <div class="tc-desc">OSS LLM observability platform. Strong eval + tracing UI. Self-hostable. Good alternative to Phoenix if you need hosted tracing with evals.</div>
+          <pre style="margin:0;font-size:11px;"><span class="fn">pip install</span> <span class="str">langfuse</span>
+
+<span class="kw">from</span> <span class="var">llama_index.core</span> <span class="kw">import</span> <span class="fn">Settings</span>
+<span class="kw">from</span> <span class="var">langfuse.llama_index</span> <span class="kw">import</span> <span class="fn">LlamaIndexInstrumentor</span>
+
+<span class="var">instrumentor</span> = <span class="fn">LlamaIndexInstrumentor</span>(
+    public_key=<span class="str">"pk-..."</span>,
+    secret_key=<span class="str">"sk-..."</span>,
+    host=<span class="str">"https://cloud.langfuse.com"</span>
+)
+<span class="var">instrumentor</span>.<span class="fn">start</span>()
+<span class="cm"># Dashboard: cloud.langfuse.com</span></pre>
+        </div>
+      </div>
+
+      <div class="note note-orange">
+        <span class="icon">🏆</span>
+        <span><strong>Recommended: Arize Phoenix</strong> for most LlamaIndex projects — it's free, OSS, has the deepest LlamaIndex integration, and combines tracing + evaluation in one tool (Topic 16).</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 90 — LlamaCloud & LlamaTrace -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#90</span>
+      <h2>LlamaCloud Observability</h2>
+    </div>
+    <div class="card-body">
+      <p>LlamaCloud is the managed cloud platform for LlamaIndex. It provides hosted tracing, pipeline management, and dataset curation through a web UI — ideal for teams that want observability without managing infrastructure.</p>
+
+      <div class="section-label">What LlamaCloud provides</div>
+      <div class="kv-grid">
+        <div class="kv-key">LlamaTrace</div>
+        <div class="kv-val">Hosted tracing dashboard — every query, retrieval, LLM call logged with full payloads</div>
+        <div class="kv-key">Pipeline UI</div>
+        <div class="kv-val">Visual editor for LlamaIndex pipelines — no-code configuration and testing</div>
+        <div class="kv-key">Dataset curation</div>
+        <div class="kv-val">Tag and export good/bad traces as evaluation datasets</div>
+        <div class="kv-key">LlamaExtract</div>
+        <div class="kv-val">Managed document extraction service (Topic 11)</div>
+        <div class="kv-key">LlamaParse hosted</div>
+        <div class="kv-val">Cloud PDF parsing — no local setup needed</div>
+      </div>
+
+      <div class="section-label" style="margin-top:14px;">Connect to LlamaCloud tracing</div>
+      <pre><span class="kw">import</span> <span class="var">os</span>
+<span class="kw">from</span> <span class="var">llama_index.core</span> <span class="kw">import</span> <span class="fn">set_global_handler</span>
+
+<span class="cm"># Single line to enable LlamaCloud tracing</span>
+<span class="var">os</span>.<span class="var">environ</span>[<span class="str">"LLAMA_CLOUD_API_KEY"</span>] = <span class="str">"llx-..."</span>
+
+<span class="fn">set_global_handler</span>(<span class="str">"llamacloud"</span>)
+
+<span class="cm"># All LlamaIndex operations now traced to cloud.llamaindex.ai</span>
+<span class="var">response</span> = <span class="var">query_engine</span>.<span class="fn">query</span>(<span class="str">"What are our key risks?"</span>)
+<span class="cm"># → Visible immediately in LlamaCloud dashboard</span></pre>
+
+      <div class="section-label" style="margin-top:14px;">Observability tools — when to use which</div>
+      <div class="kv-grid">
+        <div class="kv-key">Local dev</div>
+        <div class="kv-val">LlamaDebugHandler — zero setup, prints to console</div>
+        <div class="kv-key">Team dev / staging</div>
+        <div class="kv-val">Arize Phoenix local — free, full UI, self-hosted, evals built in</div>
+        <div class="kv-key">Production (managed)</div>
+        <div class="kv-val">LlamaCloud or Langfuse — hosted, multi-user, persistent logs</div>
+        <div class="kv-key">Existing infra</div>
+        <div class="kv-val">OpenTelemetry → Datadog / Grafana / Honeycomb — if team already uses these</div>
+      </div>
+
+      <div class="note note-blue">
+        <span class="icon">📊</span>
+        <span>The key metrics to monitor in production: <strong>query latency</strong> (p50/p95), <strong>retrieval score distribution</strong>, <strong>token cost per query</strong>, and <strong>answer quality scores</strong> (from evals in Topic 16). Without these, you're flying blind.</span>
+      </div>
+    </div>
+  </div>
+
+  <footer>LlamaIndex Notes · <span>Topic 15 of 19</span> · Observability</footer>
+
+</div>
+</body>
+</html>
