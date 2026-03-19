@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LlamaIndex — Topic 18: Production Deployment</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --surface: #13161e;
+      --border: #1e2330;
+      --accent: #10b981;
+      --accent2: #38bdf8;
+      --accent3: #f97316;
+      --accent4: #a78bfa;
+      --accent5: #fbbf24;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --code-bg: #0a0c10;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      padding: 40px 20px 80px;
+    }
+
+    .page-wrap { max-width: 920px; margin: 0 auto; }
+
+    .header {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      margin-bottom: 48px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tag {
+      background: var(--accent);
+      color: #fff;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 4px;
+      white-space: nowrap;
+      margin-top: 6px;
+    }
+
+    .header-text h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1; }
+    .header-text p  { color: var(--muted); font-size: 14px; margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 24px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: var(--accent); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(16,185,129,0.1);
+      border: 1px solid rgba(16,185,129,0.22);
+      padding: 3px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .card-header h2 { font-size: 16px; font-weight: 700; }
+    .card-body { padding: 20px 24px; }
+    .card-body p { font-size: 14px; color: #94a3b8; line-height: 1.7; margin-bottom: 14px; }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      line-height: 1.7;
+      margin: 10px 0;
+    }
+
+    .kw  { color: #38bdf8; }
+    .fn  { color: #f97316; }
+    .str { color: #4ade80; }
+    .cm  { color: #475569; font-style: italic; }
+    .var { color: #e2e8f0; }
+    .nv  { color: #a78bfa; }
+
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+      margin-top: 4px;
+    }
+
+    .kv-grid {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    .kv-key {
+      background: rgba(255,255,255,0.03);
+      padding: 10px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--accent);
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-val {
+      background: rgba(255,255,255,0.01);
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #94a3b8;
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-key:last-of-type, .kv-val:last-of-type { border-bottom: none; }
+
+    .note {
+      display: flex;
+      gap: 10px;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-top: 14px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .note-green  { background: rgba(16,185,129,0.07);  border: 1px solid rgba(16,185,129,0.22); color: #6ee7b7; }
+    .note-orange { background: rgba(249,115,22,0.07);  border: 1px solid rgba(249,115,22,0.2);  color: #fdba74; }
+    .note-blue   { background: rgba(56,189,248,0.07);  border: 1px solid rgba(56,189,248,0.2);  color: #7dd3fc; }
+    .note-purple { background: rgba(167,139,250,0.07); border: 1px solid rgba(167,139,250,0.2); color: #c4b5fd; }
+    .note-yellow { background: rgba(251,191,36,0.07);  border: 1px solid rgba(251,191,36,0.22); color: #fde68a; }
+    .note-red    { background: rgba(239,68,68,0.07);   border: 1px solid rgba(239,68,68,0.2);   color: #fca5a5; }
+    .note span.icon { font-size: 16px; flex-shrink: 0; }
+
+    /* Two-col */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin: 12px 0;
+    }
+    .col-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    /* Stack diagram */
+    .stack-layers {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin: 14px 0;
+    }
+    .layer {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .layer-num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      width: 20px;
+      flex-shrink: 0;
+    }
+    .layer-name {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      width: 160px;
+      flex-shrink: 0;
+    }
+    .layer-tech { font-size: 12px; color: #64748b; }
+    .l-app  { background: rgba(16,185,129,0.06); }
+    .l-api  { background: rgba(56,189,248,0.05); }
+    .l-llm  { background: rgba(167,139,250,0.05); }
+    .l-vec  { background: rgba(249,115,22,0.05); }
+    .l-obs  { background: rgba(251,191,36,0.05); }
+    .l-infra{ background: rgba(100,116,139,0.05); }
+
+    /* Cache flow */
+    .cache-flow {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px 20px;
+      margin: 14px 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .cf-box {
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      text-align: center;
+    }
+    .cf-arrow { color: var(--muted); font-size: 18px; }
+    .cf-query  { background: rgba(56,189,248,0.1);  border: 1px solid rgba(56,189,248,0.25);  color: #7dd3fc; }
+    .cf-cache  { background: rgba(16,185,129,0.1);  border: 1px solid rgba(16,185,129,0.25);  color: #6ee7b7; }
+    .cf-llm    { background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.25); color: #c4b5fd; }
+    .cf-hit    { background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.35);  color: #4ade80; font-weight:700; }
+    .cf-miss   { background: rgba(239,68,68,0.1);   border: 1px solid rgba(239,68,68,0.25);   color: #fca5a5; }
+
+    /* Rate limit table */
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+      margin: 12px 0;
+    }
+    .compare-table th {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      text-align: left;
+      padding: 10px 14px;
+      background: rgba(255,255,255,0.03);
+      border-bottom: 1px solid var(--border);
+      color: var(--accent);
+    }
+    .compare-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      color: #94a3b8;
+      vertical-align: top;
+    }
+    .compare-table tr:last-child td { border-bottom: none; }
+    .compare-table tr:hover td { background: rgba(255,255,255,0.01); }
+
+    footer {
+      margin-top: 60px;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    footer span { color: var(--accent); }
+
+    @media(max-width:680px){ .two-col { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="tag">TOPIC 18 / 19</div>
+    <div class="header-text">
+      <h1>Production Deployment</h1>
+      <p>11 subtopics · #102 → #112 · FastAPI · Docker · Async · Caching · Security &amp; Scale</p>
+    </div>
+  </div>
+
+
+  <!-- CARD 102 + 103 — FastAPI + Async -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#102 · #103</span>
+      <h2>FastAPI Integration &amp; Async Best Practices</h2>
+    </div>
+    <div class="card-body">
+      <p>FastAPI is the production standard for serving LlamaIndex. All LlamaIndex async methods (<code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent)">aquery</code>, <code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent)">achat</code>) integrate cleanly with FastAPI's async routes.</p>
+
+      <div class="section-label">Production FastAPI app skeleton</div>
+      <pre><span class="kw">from</span> <span class="var">fastapi</span> <span class="kw">import</span> <span class="fn">FastAPI</span>, <span class="fn">HTTPException</span>
+<span class="kw">from</span> <span class="var">fastapi.responses</span> <span class="kw">import</span> <span class="fn">StreamingResponse</span>
+<span class="kw">from</span> <span class="var">pydantic</span> <span class="kw">import</span> <span class="fn">BaseModel</span>
+<span class="kw">from</span> <span class="var">contextlib</span> <span class="kw">import</span> <span class="fn">asynccontextmanager</span>
+<span class="kw">from</span> <span class="var">llama_index.core</span> <span class="kw">import</span> <span class="fn">Settings</span>
+
+<span class="cm"># ── Lifespan: build index ONCE at startup ────────────────────</span>
+<span class="var">query_engine</span> = <span class="nv">None</span>
+
+<span class="kw">@asynccontextmanager</span>
+<span class="kw">async def</span> <span class="fn">lifespan</span>(<span class="var">app</span>: <span class="fn">FastAPI</span>):
+    <span class="kw">global</span> <span class="var">query_engine</span>
+    <span class="cm"># Load index from persistent store — do NOT rebuild on every request</span>
+    <span class="var">index</span> = <span class="kw">await</span> <span class="fn">load_index_from_storage</span>()
+    <span class="var">query_engine</span> = <span class="var">index</span>.<span class="fn">as_query_engine</span>(similarity_top_k=<span class="nv">5</span>)
+    <span class="kw">yield</span>
+    <span class="cm"># Cleanup on shutdown</span>
+
+<span class="var">app</span> = <span class="fn">FastAPI</span>(lifespan=<span class="var">lifespan</span>)
+
+<span class="cm"># ── Request / Response models ────────────────────────────────</span>
+<span class="kw">class</span> <span class="fn">QueryRequest</span>(<span class="fn">BaseModel</span>):
+    query: <span class="var">str</span>
+    session_id: <span class="var">str</span> | <span class="nv">None</span> = <span class="nv">None</span>
+
+<span class="kw">class</span> <span class="fn">QueryResponse</span>(<span class="fn">BaseModel</span>):
+    answer: <span class="var">str</span>
+    sources: <span class="fn">list</span>[<span class="var">str</span>]
+
+<span class="cm"># ── Standard query endpoint ──────────────────────────────────</span>
+<span class="kw">@app</span>.<span class="fn">post</span>(<span class="str">"/query"</span>, response_model=<span class="fn">QueryResponse</span>)
+<span class="kw">async def</span> <span class="fn">query</span>(<span class="var">req</span>: <span class="fn">QueryRequest</span>):
+    <span class="kw">if</span> <span class="kw">not</span> <span class="var">query_engine</span>:
+        <span class="kw">raise</span> <span class="fn">HTTPException</span>(status_code=<span class="nv">503</span>, detail=<span class="str">"Index not ready"</span>)
+    <span class="var">response</span> = <span class="kw">await</span> <span class="var">query_engine</span>.<span class="fn">aquery</span>(<span class="var">req</span>.<span class="var">query</span>)
+    <span class="kw">return</span> <span class="fn">QueryResponse</span>(
+        answer=<span class="var">str</span>(<span class="var">response</span>),
+        sources=[<span class="var">n</span>.<span class="var">node</span>.<span class="var">metadata</span>.<span class="fn">get</span>(<span class="str">"file_name"</span>, <span class="str">""</span>) <span class="kw">for</span> <span class="var">n</span> <span class="kw">in</span> <span class="var">response</span>.<span class="var">source_nodes</span>]
+    )
+
+<span class="cm"># ── Streaming endpoint (SSE) ─────────────────────────────────</span>
+<span class="kw">@app</span>.<span class="fn">post</span>(<span class="str">"/query/stream"</span>)
+<span class="kw">async def</span> <span class="fn">query_stream</span>(<span class="var">req</span>: <span class="fn">QueryRequest</span>):
+    <span class="var">streaming_engine</span> = <span class="var">index</span>.<span class="fn">as_query_engine</span>(streaming=<span class="nv">True</span>)
+    <span class="var">response</span> = <span class="kw">await</span> <span class="var">streaming_engine</span>.<span class="fn">aquery</span>(<span class="var">req</span>.<span class="var">query</span>)
+
+    <span class="kw">async def</span> <span class="fn">generate</span>():
+        <span class="kw">async for</span> <span class="var">token</span> <span class="kw">in</span> <span class="var">response</span>.<span class="fn">async_response_gen</span>():
+            <span class="kw">yield</span> <span class="fn">f</span><span class="str">"data: {token}\n\n"</span>
+
+    <span class="kw">return</span> <span class="fn">StreamingResponse</span>(<span class="fn">generate</span>(), media_type=<span class="str">"text/event-stream"</span>)</pre>
+
+      <div class="section-label" style="margin-top:14px;">Async best practices (#103)</div>
+      <div class="kv-grid">
+        <div class="kv-key">Always use aquery/achat</div>
+        <div class="kv-val">Never call sync <code style="font-size:11px;font-family:'JetBrains Mono',monospace;">query()</code> inside async routes — blocks the event loop</div>
+        <div class="kv-key">Build index at startup</div>
+        <div class="kv-val">Use lifespan context. Never rebuild the index per request.</div>
+        <div class="kv-key">Set concurrency limits</div>
+        <div class="kv-val">Use semaphores or request queuing to avoid overwhelming the LLM API</div>
+        <div class="kv-key">Handle timeouts</div>
+        <div class="kv-val"><code style="font-size:11px;font-family:'JetBrains Mono',monospace;">asyncio.wait_for(coro, timeout=30)</code> on every LLM call</div>
+        <div class="kv-key">Use uvicorn workers</div>
+        <div class="kv-val"><code style="font-size:11px;font-family:'JetBrains Mono',monospace;">uvicorn app:app --workers 4</code> for multi-core utilisation</div>
+      </div>
+
+      <div class="note note-orange">
+        <span class="icon">⚠️</span>
+        <span>The most common production mistake: <strong>calling sync methods in async routes</strong>. Always use <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">aquery()</code>, <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">achat()</code>, <code style="font-family:'JetBrains Mono',monospace;font-size:11px;">aretrieve()</code>. Sync methods block the entire event loop and destroy throughput.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 104 + 105 — Docker + Env config -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#104 · #105</span>
+      <h2>Docker Containerisation &amp; Environment Config</h2>
+    </div>
+    <div class="card-body">
+      <div class="two-col">
+        <div>
+          <div class="col-label">🐳 Dockerfile (#104)</div>
+          <pre style="margin:0;font-size:11.5px;"><span class="cm"># Multi-stage build — keep image small</span>
+<span class="kw">FROM</span> <span class="fn">python:3.11-slim</span> <span class="kw">AS</span> <span class="var">base</span>
+
+<span class="kw">WORKDIR</span> <span class="str">/app</span>
+
+<span class="cm"># Install deps first (layer caching)</span>
+<span class="kw">COPY</span> <span class="var">requirements.txt</span> <span class="str">.</span>
+<span class="kw">RUN</span> <span class="fn">pip install</span> <span class="str">--no-cache-dir -r requirements.txt</span>
+
+<span class="cm"># Copy app code</span>
+<span class="kw">COPY</span> <span class="str">. .</span>
+
+<span class="cm"># Non-root user for security</span>
+<span class="kw">RUN</span> <span class="fn">adduser</span> <span class="str">--disabled-password appuser</span>
+<span class="kw">USER</span> <span class="var">appuser</span>
+
+<span class="kw">EXPOSE</span> <span class="nv">8000</span>
+
+<span class="kw">CMD</span> [<span class="str">"uvicorn"</span>, <span class="str">"app.main:app"</span>,
+     <span class="str">"--host"</span>, <span class="str">"0.0.0.0"</span>,
+     <span class="str">"--port"</span>, <span class="str">"8000"</span>,
+     <span class="str">"--workers"</span>, <span class="str">"4"</span>]</pre>
+        </div>
+        <div>
+          <div class="col-label">⚙️ Environment config (#105)</div>
+          <pre style="margin:0;font-size:11.5px;"><span class="cm"># config.py — never hardcode secrets</span>
+<span class="kw">from</span> <span class="var">pydantic_settings</span> <span class="kw">import</span> <span class="fn">BaseSettings</span>
+
+<span class="kw">class</span> <span class="fn">Settings</span>(<span class="fn">BaseSettings</span>):
+    openai_api_key: <span class="var">str</span>
+    pinecone_api_key: <span class="var">str</span>
+    redis_url: <span class="var">str</span> = <span class="str">"redis://localhost:6379"</span>
+    llm_model: <span class="var">str</span> = <span class="str">"gpt-4o"</span>
+    embed_model: <span class="var">str</span> = <span class="str">"text-embedding-3-small"</span>
+    top_k: <span class="var">int</span> = <span class="nv">5</span>
+    max_tokens: <span class="var">int</span> = <span class="nv">1024</span>
+
+    <span class="kw">class</span> <span class="fn">Config</span>:
+        env_file = <span class="str">".env"</span>
+
+<span class="var">settings</span> = <span class="fn">Settings</span>()
+
+<span class="cm"># .env file (never commit this)</span>
+<span class="cm"># OPENAI_API_KEY=sk-...</span>
+<span class="cm"># PINECONE_API_KEY=...</span>
+<span class="cm"># REDIS_URL=redis://redis:6379</span>
+
+<span class="cm"># docker-compose.yml</span>
+<span class="cm"># environment:</span>
+<span class="cm">#   - OPENAI_API_KEY=${OPENAI_API_KEY}</span></pre>
+        </div>
+      </div>
+
+      <div class="section-label">docker-compose.yml — full stack</div>
+      <pre><span class="cm">version: '3.8'</span>
+<span class="var">services</span>:
+  <span class="var">app</span>:
+    <span class="var">build</span>: .
+    <span class="var">ports</span>: [<span class="str">"8000:8000"</span>]
+    <span class="var">env_file</span>: .env
+    <span class="var">depends_on</span>: [redis]
+    <span class="var">volumes</span>: [<span class="str">"./storage:/app/storage"</span>]   <span class="cm"># persist index files</span>
+    <span class="var">deploy</span>:
+      <span class="var">resources</span>:
+        <span class="var">limits</span>: { memory: 2G, cpus: '2.0' }
+
+  <span class="var">redis</span>:
+    <span class="var">image</span>: redis:7-alpine
+    <span class="var">ports</span>: [<span class="str">"6379:6379"</span>]
+
+  <span class="var">nginx</span>:
+    <span class="var">image</span>: nginx:alpine
+    <span class="var">ports</span>: [<span class="str">"80:80"</span>, <span class="str">"443:443"</span>]
+    <span class="var">depends_on</span>: [app]</pre>
+    </div>
+  </div>
+
+
+  <!-- CARD 106 + 107 — Caching + Rate Limiting -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#106 · #107</span>
+      <h2>Caching &amp; Rate Limiting</h2>
+    </div>
+    <div class="card-body">
+      <div class="section-label">Semantic caching — cache similar queries (#106)</div>
+      <div class="cache-flow">
+        <div class="cf-box cf-query">User Query</div>
+        <span class="cf-arrow">→</span>
+        <div class="cf-box cf-cache">Semantic Cache<br/><span style="font-size:10px;color:#64748b;">embed + similarity check</span></div>
+        <span class="cf-arrow">→</span>
+        <div style="display:flex;flex-direction:column;gap:6px;">
+          <div class="cf-box cf-hit">HIT → return cached answer</div>
+          <div class="cf-box cf-miss">MISS → call LLM + store</div>
+        </div>
+        <span class="cf-arrow">→</span>
+        <div class="cf-box cf-llm">LLM pipeline</div>
+      </div>
+
+      <pre><span class="fn">pip install</span> <span class="str">llama-index-storage-kvstore-redis</span>
+
+<span class="kw">from</span> <span class="var">llama_index.core.storage.kvstore.redis_kvstore</span> <span class="kw">import</span> <span class="fn">RedisKVStore</span>
+<span class="kw">from</span> <span class="var">llama_index.storage.kvstore.redis</span> <span class="kw">import</span> <span class="fn">RedisKVStore</span>
+
+<span class="cm"># Ingestion pipeline with built-in cache</span>
+<span class="kw">from</span> <span class="var">llama_index.core.ingestion</span> <span class="kw">import</span> <span class="fn">IngestionPipeline</span>, <span class="fn">IngestionCache</span>
+
+<span class="var">cache</span> = <span class="fn">IngestionCache</span>(
+    cache=<span class="fn">RedisKVStore</span>(redis_url=<span class="str">"redis://localhost:6379"</span>),
+    collection=<span class="str">"llama_ingestion"</span>
+)
+
+<span class="cm"># For query caching — wrap query engine manually</span>
+<span class="kw">from</span> <span class="var">functools</span> <span class="kw">import</span> <span class="fn">lru_cache</span>
+<span class="kw">import</span> <span class="var">hashlib</span>
+
+<span class="var">query_cache</span> = {}   <span class="cm"># use Redis in production</span>
+
+<span class="kw">async def</span> <span class="fn">cached_query</span>(<span class="var">query</span>: <span class="var">str</span>) -> <span class="var">str</span>:
+    <span class="var">cache_key</span> = <span class="var">hashlib</span>.<span class="fn">md5</span>(<span class="var">query</span>.<span class="fn">encode</span>()).<span class="fn">hexdigest</span>()
+    <span class="kw">if</span> <span class="var">cache_key</span> <span class="kw">in</span> <span class="var">query_cache</span>:
+        <span class="kw">return</span> <span class="var">query_cache</span>[<span class="var">cache_key</span>]
+    <span class="var">response</span> = <span class="kw">await</span> <span class="var">query_engine</span>.<span class="fn">aquery</span>(<span class="var">query</span>)
+    <span class="var">query_cache</span>[<span class="var">cache_key</span>] = <span class="var">str</span>(<span class="var">response</span>)
+    <span class="kw">return</span> <span class="var">query_cache</span>[<span class="var">cache_key</span>]</pre>
+
+      <div class="section-label" style="margin-top:14px;">Rate limiting — protect your API (#107)</div>
+      <pre><span class="fn">pip install</span> <span class="str">slowapi</span>
+
+<span class="kw">from</span> <span class="var">slowapi</span> <span class="kw">import</span> <span class="fn">Limiter</span>
+<span class="kw">from</span> <span class="var">slowapi.util</span> <span class="kw">import</span> <span class="fn">get_remote_address</span>
+<span class="kw">from</span> <span class="var">fastapi</span> <span class="kw">import</span> <span class="fn">Request</span>
+
+<span class="var">limiter</span> = <span class="fn">Limiter</span>(key_func=<span class="fn">get_remote_address</span>)
+<span class="var">app</span>.<span class="var">state</span>.<span class="var">limiter</span> = <span class="var">limiter</span>
+
+<span class="cm"># 20 queries/minute per IP</span>
+<span class="kw">@app</span>.<span class="fn">post</span>(<span class="str">"/query"</span>)
+<span class="kw">@limiter</span>.<span class="fn">limit</span>(<span class="str">"20/minute"</span>)
+<span class="kw">async def</span> <span class="fn">query</span>(<span class="var">request</span>: <span class="fn">Request</span>, <span class="var">req</span>: <span class="fn">QueryRequest</span>):
+    <span class="kw">return</span> <span class="kw">await</span> <span class="var">query_engine</span>.<span class="fn">aquery</span>(<span class="var">req</span>.<span class="var">query</span>)
+
+<span class="cm"># Concurrency limit with semaphore</span>
+<span class="kw">import</span> <span class="var">asyncio</span>
+<span class="var">semaphore</span> = <span class="var">asyncio</span>.<span class="fn">Semaphore</span>(<span class="nv">10</span>)  <span class="cm"># max 10 concurrent LLM calls</span>
+
+<span class="kw">async def</span> <span class="fn">throttled_query</span>(<span class="var">q</span>: <span class="var">str</span>):
+    <span class="kw">async with</span> <span class="var">semaphore</span>:
+        <span class="kw">return</span> <span class="kw">await</span> <span class="var">query_engine</span>.<span class="fn">aquery</span>(<span class="var">q</span>)</pre>
+
+      <div class="note note-green">
+        <span class="icon">💰</span>
+        <span>Query caching can reduce LLM costs by 30–60% in production — many users ask the same or very similar questions. Semantic caching (embedding similarity) catches paraphrased duplicates that exact-match caching misses.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 108 + 109 — llama_deploy + llamactl -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#108 · #109</span>
+      <h2>llama_deploy &amp; llamactl — Workflow Microservices</h2>
+    </div>
+    <div class="card-body">
+      <p><code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent)">llama_deploy</code> converts LlamaIndex Workflows into scalable microservices with a REST API, message queue, and control plane. <code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent)">llamactl</code> is the CLI to manage them.</p>
+
+      <div class="section-label">Deploy a workflow as a microservice (#108)</div>
+      <pre><span class="fn">pip install</span> <span class="str">llama-deploy</span>
+
+<span class="cm"># deploy.py</span>
+<span class="kw">import</span> <span class="var">asyncio</span>
+<span class="kw">from</span> <span class="var">llama_deploy</span> <span class="kw">import</span> <span class="fn">deploy_workflow</span>, <span class="fn">WorkflowServiceConfig</span>, <span class="fn">ControlPlaneConfig</span>
+<span class="kw">from</span> <span class="var">my_app.workflows</span> <span class="kw">import</span> <span class="fn">RAGWorkflow</span>
+
+<span class="kw">async def</span> <span class="fn">main</span>():
+    <span class="kw">await</span> <span class="fn">deploy_workflow</span>(
+        <span class="fn">RAGWorkflow</span>(timeout=<span class="nv">60</span>),
+        workflow_config=<span class="fn">WorkflowServiceConfig</span>(
+            host=<span class="str">"0.0.0.0"</span>,
+            port=<span class="nv">8002</span>,
+            service_name=<span class="str">"rag-workflow"</span>
+        ),
+        control_plane_config=<span class="fn">ControlPlaneConfig</span>(
+            host=<span class="str">"0.0.0.0"</span>,
+            port=<span class="nv">8000</span>
+        )
+    )
+
+<span class="var">asyncio</span>.<span class="fn">run</span>(<span class="fn">main</span>())</pre>
+
+      <div class="section-label" style="margin-top:14px;">llamactl — manage deployed workflows (#109)</div>
+      <pre><span class="fn">pip install</span> <span class="str">llamactl</span>
+
+<span class="cm"># List all running services</span>
+<span class="fn">llamactl</span> <span class="var">status</span>
+
+<span class="cm"># Send a task to a deployed workflow</span>
+<span class="fn">llamactl</span> <span class="var">run</span> --service rag-workflow --arg query=<span class="str">"What is our revenue?"</span>
+
+<span class="cm"># Scale a service</span>
+<span class="fn">llamactl</span> <span class="var">scale</span> --service rag-workflow --replicas 3
+
+<span class="cm"># View logs</span>
+<span class="fn">llamactl</span> <span class="var">logs</span> --service rag-workflow --tail 50
+
+<span class="cm"># REST API (once deployed)</span>
+<span class="cm"># POST http://localhost:8000/tasks</span>
+<span class="cm"># {"service_name": "rag-workflow", "input": {"query": "..."}}</span></pre>
+
+      <div class="note note-blue">
+        <span class="icon">🚀</span>
+        <span><code style="font-family:'JetBrains Mono',monospace;font-size:11px;">llama_deploy</code> handles load balancing, task queuing, and service discovery automatically. Your workflow becomes a <strong>horizontally scalable</strong> service without writing any infrastructure code.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 110 + 111 + 112 — Security + Scaling + Multi-tenancy -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#110 · #111 · #112</span>
+      <h2>Security · Scaling Strategies · Multi-Tenancy</h2>
+    </div>
+    <div class="card-body">
+      <div class="section-label">Security hardening (#110)</div>
+      <pre><span class="cm"># 1. Input validation — never pass raw user input directly</span>
+<span class="kw">from</span> <span class="var">pydantic</span> <span class="kw">import</span> <span class="fn">BaseModel</span>, <span class="fn">validator</span>
+
+<span class="kw">class</span> <span class="fn">QueryRequest</span>(<span class="fn">BaseModel</span>):
+    query: <span class="var">str</span>
+
+    <span class="kw">@validator</span>(<span class="str">"query"</span>)
+    <span class="kw">def</span> <span class="fn">validate_query</span>(<span class="var">cls</span>, <span class="var">v</span>):
+        <span class="kw">if</span> <span class="fn">len</span>(<span class="var">v</span>) > <span class="nv">2000</span>:
+            <span class="kw">raise</span> <span class="fn">ValueError</span>(<span class="str">"Query too long"</span>)
+        <span class="cm"># Strip potential prompt injection attempts</span>
+        <span class="var">blocked</span> = [<span class="str">"ignore previous instructions"</span>, <span class="str">"system prompt"</span>]
+        <span class="kw">if</span> <span class="fn">any</span>(<span class="var">b</span> <span class="kw">in</span> <span class="var">v</span>.<span class="fn">lower</span>() <span class="kw">for</span> <span class="var">b</span> <span class="kw">in</span> <span class="var">blocked</span>):
+            <span class="kw">raise</span> <span class="fn">ValueError</span>(<span class="str">"Invalid query"</span>)
+        <span class="kw">return</span> <span class="var">v</span>
+
+<span class="cm"># 2. API key authentication</span>
+<span class="kw">from</span> <span class="var">fastapi.security</span> <span class="kw">import</span> <span class="fn">APIKeyHeader</span>
+<span class="kw">from</span> <span class="var">fastapi</span> <span class="kw">import</span> <span class="fn">Security</span>
+
+<span class="var">api_key_header</span> = <span class="fn">APIKeyHeader</span>(name=<span class="str">"X-API-Key"</span>)
+
+<span class="kw">async def</span> <span class="fn">verify_api_key</span>(<span class="var">key</span>: <span class="var">str</span> = <span class="fn">Security</span>(<span class="var">api_key_header</span>)):
+    <span class="kw">if</span> <span class="var">key</span> != <span class="var">settings</span>.<span class="var">api_key</span>:
+        <span class="kw">raise</span> <span class="fn">HTTPException</span>(status_code=<span class="nv">403</span>, detail=<span class="str">"Invalid API key"</span>)
+
+<span class="kw">@app</span>.<span class="fn">post</span>(<span class="str">"/query"</span>, dependencies=[<span class="fn">Depends</span>(<span class="fn">verify_api_key</span>)])
+<span class="kw">async def</span> <span class="fn">query</span>(<span class="var">req</span>: <span class="fn">QueryRequest</span>): ...</pre>
+
+      <div class="section-label" style="margin-top:14px;">Scaling strategies (#111)</div>
+      <table class="compare-table">
+        <thead>
+          <tr>
+            <th>Scale Challenge</th>
+            <th>Solution</th>
+            <th>Tool</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>More concurrent users</td>
+            <td>Increase uvicorn workers</td>
+            <td><code style="font-size:11px;font-family:'JetBrains Mono',monospace;">--workers N</code></td>
+          </tr>
+          <tr>
+            <td>High request volume</td>
+            <td>Horizontal pod scaling</td>
+            <td>Kubernetes HPA or ECS</td>
+          </tr>
+          <tr>
+            <td>LLM API rate limits</td>
+            <td>Request queue + backoff</td>
+            <td>Celery / ARQ / asyncio.Queue</td>
+          </tr>
+          <tr>
+            <td>Large document corpus</td>
+            <td>Distributed vector store</td>
+            <td>Pinecone / Qdrant clusters</td>
+          </tr>
+          <tr>
+            <td>Slow index rebuilds</td>
+            <td>Incremental ingestion pipeline</td>
+            <td>IngestionPipeline + cache</td>
+          </tr>
+          <tr>
+            <td>Cold start latency</td>
+            <td>Warm-up queries on startup</td>
+            <td>Lifespan with pre-queries</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="section-label" style="margin-top:14px;">Multi-tenancy — isolate per-user data (#112)</div>
+      <pre><span class="cm"># Strategy 1: Metadata filtering (shared index)</span>
+<span class="kw">def</span> <span class="fn">get_user_query_engine</span>(<span class="var">user_id</span>: <span class="var">str</span>):
+    <span class="kw">return</span> <span class="var">index</span>.<span class="fn">as_query_engine</span>(
+        filters=<span class="fn">MetadataFilters</span>(filters=[
+            <span class="fn">MetadataFilter</span>(key=<span class="str">"user_id"</span>, value=<span class="var">user_id</span>)
+        ])
+    )
+
+<span class="cm"># Strategy 2: Namespace per tenant (Pinecone)</span>
+<span class="kw">from</span> <span class="var">llama_index.vector_stores.pinecone</span> <span class="kw">import</span> <span class="fn">PineconeVectorStore</span>
+
+<span class="kw">def</span> <span class="fn">get_tenant_vector_store</span>(<span class="var">tenant_id</span>: <span class="var">str</span>):
+    <span class="kw">return</span> <span class="fn">PineconeVectorStore</span>(
+        index_name=<span class="str">"main"</span>,
+        namespace=<span class="var">tenant_id</span>   <span class="cm"># fully isolated namespace</span>
+    )
+
+<span class="cm"># Strategy 3: Separate index per tenant (full isolation)</span>
+<span class="var">TENANT_INDEXES</span> = {}
+
+<span class="kw">async def</span> <span class="fn">get_or_create_tenant_index</span>(<span class="var">tenant_id</span>: <span class="var">str</span>):
+    <span class="kw">if</span> <span class="var">tenant_id</span> <span class="kw">not in</span> <span class="var">TENANT_INDEXES</span>:
+        <span class="var">TENANT_INDEXES</span>[<span class="var">tenant_id</span>] = <span class="kw">await</span> <span class="fn">build_index_for_tenant</span>(<span class="var">tenant_id</span>)
+    <span class="kw">return</span> <span class="var">TENANT_INDEXES</span>[<span class="var">tenant_id</span>]</pre>
+
+      <div class="kv-grid" style="margin-top:10px;">
+        <div class="kv-key">Metadata filter</div>
+        <div class="kv-val">Simplest. Lowest cost. Risk: poor filter = data leak. Good for MVP.</div>
+        <div class="kv-key">Namespace (Pinecone)</div>
+        <div class="kv-val">Good isolation, same index. Production default for SaaS. Low overhead.</div>
+        <div class="kv-key">Separate index</div>
+        <div class="kv-val">Full isolation. Highest cost. Use only for enterprise/compliance requirements.</div>
+      </div>
+
+      <div class="note note-red">
+        <span class="icon">🔒</span>
+        <span><strong>Multi-tenancy security is critical.</strong> Never return data from one tenant to another. Namespace isolation (Pinecone/Qdrant) is the safest production pattern — a bug in metadata filtering can expose data across tenants.</span>
+      </div>
+
+      <div class="section-label" style="margin-top:16px;">Production deployment stack overview</div>
+      <div class="stack-layers">
+        <div class="layer l-app">
+          <span class="layer-num">7</span>
+          <span class="layer-name">Frontend / Clients</span>
+          <span class="layer-tech">Web app, mobile, Slack bot — consume /query and /query/stream endpoints</span>
+        </div>
+        <div class="layer l-api">
+          <span class="layer-num">6</span>
+          <span class="layer-name">API Layer</span>
+          <span class="layer-tech">FastAPI + Nginx + auth + rate limiting + request validation</span>
+        </div>
+        <div class="layer l-app" style="background:rgba(16,185,129,0.05);">
+          <span class="layer-num">5</span>
+          <span class="layer-name">Workflow/Agent</span>
+          <span class="layer-tech">LlamaIndex Workflows (Topic 13) + llama_deploy microservices</span>
+        </div>
+        <div class="layer l-llm">
+          <span class="layer-num">4</span>
+          <span class="layer-name">LLM + Embeddings</span>
+          <span class="layer-tech">OpenAI / Anthropic / Azure + Cohere reranker</span>
+        </div>
+        <div class="layer l-vec">
+          <span class="layer-num">3</span>
+          <span class="layer-name">Vector Store</span>
+          <span class="layer-tech">Pinecone / Qdrant — with namespaced multi-tenancy</span>
+        </div>
+        <div class="layer l-obs">
+          <span class="layer-num">2</span>
+          <span class="layer-name">Observability</span>
+          <span class="layer-tech">Arize Phoenix / Langfuse + TokenCountingHandler + eval CI</span>
+        </div>
+        <div class="layer l-infra">
+          <span class="layer-num">1</span>
+          <span class="layer-name">Infrastructure</span>
+          <span class="layer-tech">Docker + Redis (chat store + cache) + Kubernetes / ECS</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>LlamaIndex Notes · <span>Topic 18 of 19</span> · Production Deployment</footer>
+
+</div>
+</body>
+</html>

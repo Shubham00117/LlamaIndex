@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LlamaIndex — Topic 19: Real-World Project Patterns</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --surface: #13161e;
+      --border: #1e2330;
+      --accent: #f59e0b;
+      --accent2: #38bdf8;
+      --accent3: #4ade80;
+      --accent4: #a78bfa;
+      --accent5: #f43f5e;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --code-bg: #0a0c10;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      padding: 40px 20px 80px;
+    }
+
+    .page-wrap { max-width: 960px; margin: 0 auto; }
+
+    .header {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      margin-bottom: 32px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tag {
+      background: var(--accent);
+      color: #0d0f14;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 4px;
+      white-space: nowrap;
+      margin-top: 6px;
+    }
+
+    .header-text h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1; }
+    .header-text p  { color: var(--muted); font-size: 14px; margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
+
+    /* Completion banner */
+    .complete-banner {
+      background: linear-gradient(135deg, rgba(245,158,11,0.12), rgba(251,191,36,0.06));
+      border: 1px solid rgba(245,158,11,0.3);
+      border-radius: 12px;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .cb-icon { font-size: 30px; }
+    .cb-text h3 { font-size: 16px; font-weight: 700; color: #fcd34d; margin-bottom: 4px; }
+    .cb-text p  { font-size: 13px; color: #92400e; color: #d97706; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 20px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: var(--accent); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 16px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(245,158,11,0.1);
+      border: 1px solid rgba(245,158,11,0.22);
+      padding: 3px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .card-header h2 { font-size: 16px; font-weight: 700; }
+    .card-body { padding: 18px 24px; }
+    .card-body p { font-size: 14px; color: #94a3b8; line-height: 1.7; margin-bottom: 12px; }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 18px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      line-height: 1.7;
+      margin: 10px 0;
+    }
+
+    .kw  { color: #38bdf8; }
+    .fn  { color: #f97316; }
+    .str { color: #4ade80; }
+    .cm  { color: #475569; font-style: italic; }
+    .var { color: #e2e8f0; }
+    .nv  { color: #a78bfa; }
+
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+      margin-top: 4px;
+    }
+
+    /* Architecture diagrams */
+    .arch-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 12px 0;
+      padding: 14px 18px;
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+    }
+    .ab {
+      padding: 7px 13px;
+      border-radius: 7px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      text-align: center;
+      white-space: nowrap;
+    }
+    .ab-in   { background: rgba(56,189,248,0.1);  border: 1px solid rgba(56,189,248,0.25);  color: #7dd3fc; }
+    .ab-proc { background: rgba(245,158,11,0.1);  border: 1px solid rgba(245,158,11,0.25);  color: #fcd34d; }
+    .ab-ret  { background: rgba(74,222,128,0.1);  border: 1px solid rgba(74,222,128,0.25);  color: #86efac; }
+    .ab-llm  { background: rgba(167,139,250,0.1); border: 1px solid rgba(167,139,250,0.25); color: #c4b5fd; }
+    .ab-out  { background: rgba(244,63,94,0.1);   border: 1px solid rgba(244,63,94,0.25);   color: #fda4af; }
+    .ab-mem  { background: rgba(249,115,22,0.1);  border: 1px solid rgba(249,115,22,0.25);  color: #fdba74; }
+    .arr { color: var(--muted); font-size: 16px; }
+
+    /* Stack pills */
+    .stack-pills {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin: 10px 0;
+    }
+    .pill {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 12px;
+      border: 1px solid rgba(245,158,11,0.25);
+      background: rgba(245,158,11,0.07);
+      color: #fcd34d;
+    }
+    .pill-blue   { border-color: rgba(56,189,248,0.25);  background: rgba(56,189,248,0.07);  color: #7dd3fc; }
+    .pill-green  { border-color: rgba(74,222,128,0.25);  background: rgba(74,222,128,0.07);  color: #86efac; }
+    .pill-purple { border-color: rgba(167,139,250,0.25); background: rgba(167,139,250,0.07); color: #c4b5fd; }
+    .pill-red    { border-color: rgba(244,63,94,0.25);   background: rgba(244,63,94,0.07);   color: #fda4af; }
+
+    .note {
+      display: flex;
+      gap: 10px;
+      border-radius: 8px;
+      padding: 11px 15px;
+      margin-top: 12px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .note-amber  { background: rgba(245,158,11,0.07); border: 1px solid rgba(245,158,11,0.22); color: #fcd34d; }
+    .note-green  { background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2);  color: #86efac; }
+    .note-blue   { background: rgba(56,189,248,0.07); border: 1px solid rgba(56,189,248,0.2);  color: #7dd3fc; }
+    .note-purple { background: rgba(167,139,250,0.07);border: 1px solid rgba(167,139,250,0.2); color: #c4b5fd; }
+    .note span.icon { font-size: 15px; flex-shrink: 0; }
+
+    /* Two-col */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin: 10px 0;
+    }
+    .col-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    /* Key decisions table */
+    .kv-grid {
+      display: grid;
+      grid-template-columns: 230px 1fr;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    .kv-key {
+      background: rgba(255,255,255,0.03);
+      padding: 9px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--accent);
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-val {
+      background: rgba(255,255,255,0.01);
+      padding: 9px 14px;
+      font-size: 13px;
+      color: #94a3b8;
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-key:last-of-type, .kv-val:last-of-type { border-bottom: none; }
+
+    /* Final topic grid — overview of all 10 */
+    .project-overview {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      margin: 16px 0;
+    }
+    .po-card {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+      transition: border-color 0.2s;
+    }
+    .po-card:hover { border-color: var(--accent); }
+    .po-num  {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(245,158,11,0.1);
+      border: 1px solid rgba(245,158,11,0.2);
+      border-radius: 4px;
+      padding: 2px 7px;
+      display: inline-block;
+      margin-bottom: 6px;
+    }
+    .po-name { font-size: 13px; font-weight: 700; margin-bottom: 4px; }
+    .po-tags { display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 6px; }
+    .po-tag  {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 9px;
+      padding: 1px 6px;
+      border-radius: 8px;
+      background: rgba(56,189,248,0.08);
+      border: 1px solid rgba(56,189,248,0.2);
+      color: #7dd3fc;
+    }
+    .po-desc { font-size: 11px; color: #64748b; line-height: 1.4; }
+
+    /* Completion summary */
+    .complete-summary {
+      background: linear-gradient(135deg, rgba(16,185,129,0.06), rgba(56,189,248,0.04));
+      border: 1px solid rgba(16,185,129,0.2);
+      border-radius: 12px;
+      padding: 24px;
+      margin-top: 32px;
+    }
+    .cs-title { font-size: 18px; font-weight: 800; color: #6ee7b7; margin-bottom: 16px; }
+    .cs-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    .cs-stat {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+    .cs-val  { font-family: 'JetBrains Mono', monospace; font-size: 24px; font-weight: 700; color: var(--accent); }
+    .cs-label{ font-size: 11px; color: #64748b; margin-top: 4px; }
+    .cs-path { font-size: 13px; color: #94a3b8; line-height: 1.8; }
+    .cs-path strong { color: #e2e8f0; }
+
+    footer {
+      margin-top: 60px;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    footer span { color: var(--accent); }
+
+    @media(max-width:680px){
+      .project-overview { grid-template-columns: 1fr; }
+      .two-col { grid-template-columns: 1fr; }
+      .cs-grid { grid-template-columns: repeat(2,1fr); }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="tag">TOPIC 19 / 19 · FINAL</div>
+    <div class="header-text">
+      <h1>Real-World Project Patterns</h1>
+      <p>10 subtopics · #113 → #122 · Production blueprints for every major use case</p>
+    </div>
+  </div>
+
+  <div class="complete-banner">
+    <div class="cb-icon">🏆</div>
+    <div class="cb-text">
+      <h3>Final Topic — Architecture Blueprints</h3>
+      <p>Every pattern here is a production blueprint combining all the skills from Topics 1–18. These are the real systems you will build. Each one maps directly to a real business problem.</p>
+    </div>
+  </div>
+
+  <!-- OVERVIEW GRID -->
+  <div class="project-overview">
+    <div class="po-card">
+      <div class="po-num">#113</div>
+      <div class="po-name">Enterprise Document Q&A</div>
+      <div class="po-tags"><span class="po-tag">RAG</span><span class="po-tag">Reranking</span><span class="po-tag">Metadata</span></div>
+      <div class="po-desc">The foundational RAG pattern. Multi-format docs, metadata filters, hybrid retrieval.</div>
+    </div>
+    <div class="po-card">
+      <div class="po-num">#114</div>
+      <div class="po-name">Multi-Document Research Agent</div>
+      <div class="po-tags"><span class="po-tag">Agents</span><span class="po-tag">Multi-Index</span><span class="po-tag">Router</span></div>
+      <div class="po-desc">Agent that reasons across multiple specialized indexes simultaneously.</div>
+    </div>
+    <div class="po-card">
+      <div class="po-num">#115</div>
+      <div class="po-name">Chatbot with Persistent Memory</div>
+      <div class="po-tags"><span class="po-tag">Chat</span><span class="po-tag">Memory</span><span class="po-tag">Redis</span></div>
+      <div class="po-desc">Multi-turn chatbot that remembers users across sessions via vector memory.</div>
+    </div>
+    <div class="po-card">
+      <div class="po-num">#116</div>
+      <div class="po-name">Full-Stack Web App</div>
+      <div class="po-tags"><span class="po-tag">FastAPI</span><span class="po-tag">React</span><span class="po-tag">SSE</span></div>
+      <div class="po-desc">LlamaIndex + FastAPI backend + React frontend with streaming responses.</div>
+    </div>
+    <div class="po-card">
+      <div class="po-num">#117</div>
+      <div class="po-name">Multi-Tenant RAG</div>
+      <div class="po-tags"><span class="po-tag">SaaS</span><span class="po-tag">Namespaces</span><span class="po-tag">Auth</span></div>
+      <div class="po-desc">User-level data isolation using Pinecone namespaces per tenant.</div>
+    </div>
+    <div class="po-card">
+      <div class="po-num">#118</div>
+      <div class="po-name">Financial Doc Analysis</div>
+      <div class="po-tags"><span class="po-tag">LlamaParse</span><span class="po-tag">SQL</span><span class="po-tag">Structured</span></div>
+      <div class="po-desc">Parse PDFs with tables, extract structured data, combine RAG + SQL.</div>
+    </div>
+    <div class="po-card">
+      <div class="po-num">#119</div>
+      <div class="po-name">SQL + Vector Hybrid Search</div>
+      <div class="po-tags"><span class="po-tag">NL→SQL</span><span class="po-tag">Hybrid</span><span class="po-tag">Router</span></div>
+      <div class="po-desc">Router agent that routes to SQL or vector search based on query type.</div>
+    </div>
+    <div class="po-card">
+      <div class="po-num">#120</div>
+      <div class="po-name">Automated Report Generation</div>
+      <div class="po-tags"><span class="po-tag">Workflow</span><span class="po-tag">Parallel</span><span class="po-tag">Structured</span></div>
+      <div class="po-desc">Workflow that gathers data from multiple sources and generates structured reports.</div>
+    </div>
+    <div class="po-card">
+      <div class="po-num">#121</div>
+      <div class="po-name">Agentic OCR Pipeline</div>
+      <div class="po-tags"><span class="po-tag">LlamaParse</span><span class="po-tag">Vision</span><span class="po-tag">Agent</span></div>
+      <div class="po-desc">Process scanned docs end-to-end: OCR → extract → index → query.</div>
+    </div>
+    <div class="po-card">
+      <div class="po-num">#122</div>
+      <div class="po-name">Corrective RAG</div>
+      <div class="po-tags"><span class="po-tag">Self-Correcting</span><span class="po-tag">Workflow</span><span class="po-tag">Eval</span></div>
+      <div class="po-desc">RAG that evaluates its own answers and retries with refined queries when quality is low.</div>
+    </div>
+  </div>
+
+
+  <!-- CARD 113 — Enterprise Doc Q&A -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#113</span>
+      <h2>Enterprise Document Q&A System</h2>
+    </div>
+    <div class="card-body">
+      <p>The core production RAG pattern. Ingests PDF/Word/HTML documents, chunks with metadata, retrieves with hybrid search + reranking, synthesizes with a scoped system prompt.</p>
+
+      <div class="arch-row">
+        <div class="ab ab-in">📄 PDFs/Docs</div><span class="arr">→</span>
+        <div class="ab ab-proc">LlamaParse + Chunking</div><span class="arr">→</span>
+        <div class="ab ab-ret">Pinecone (BM25 + Vector)</div><span class="arr">→</span>
+        <div class="ab ab-proc">Cohere Reranker</div><span class="arr">→</span>
+        <div class="ab ab-llm">GPT-4o + System Prompt</div><span class="arr">→</span>
+        <div class="ab ab-out">Answer + Sources</div>
+      </div>
+
+      <div class="section-label">Key implementation decisions</div>
+      <div class="kv-grid">
+        <div class="kv-key">Chunk size</div>
+        <div class="kv-val">512 tokens, 64 overlap. Store parent (2048) for auto-merging retriever.</div>
+        <div class="kv-key">Retrieval</div>
+        <div class="kv-val">Hybrid BM25 + Vector → top-20 → Cohere rerank → top-5 to LLM.</div>
+        <div class="kv-key">Metadata</div>
+        <div class="kv-val">doc_type, department, date, source_file on every chunk for filtering.</div>
+        <div class="kv-key">Ingestion pipeline</div>
+        <div class="kv-val">IngestionPipeline with Redis cache — only re-embeds changed documents.</div>
+      </div>
+
+      <div class="stack-pills">
+        <span class="pill">LlamaParse</span><span class="pill">SentenceSplitter</span><span class="pill">HybridRetriever</span>
+        <span class="pill">CohereReranker</span><span class="pill">Pinecone</span><span class="pill">FastAPI</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 114 + 115 — Research Agent + Memory Chatbot -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#114 · #115</span>
+      <h2>Multi-Document Research Agent &amp; Persistent Memory Chatbot</h2>
+    </div>
+    <div class="card-body">
+      <div class="two-col">
+        <div>
+          <div class="col-label">🔍 Research Agent (#114)</div>
+          <p style="font-size:13px;color:#64748b;margin-bottom:10px;">Agent with one QueryEngineTool per document collection — finance, legal, market data. RouterRetriever picks the right source, or agent fans out to multiple sources simultaneously.</p>
+          <div class="arch-row" style="flex-direction:column;align-items:flex-start;gap:6px;">
+            <div class="ab ab-in" style="width:100%;text-align:center;">User Research Query</div>
+            <div class="ab ab-proc" style="width:100%;text-align:center;">ReActAgent / FunctionCallingAgent</div>
+            <div style="display:flex;gap:6px;width:100%;">
+              <div class="ab ab-ret" style="flex:1;text-align:center;">Finance<br/>Index</div>
+              <div class="ab ab-ret" style="flex:1;text-align:center;">Legal<br/>Index</div>
+              <div class="ab ab-ret" style="flex:1;text-align:center;">Market<br/>Index</div>
+            </div>
+            <div class="ab ab-out" style="width:100%;text-align:center;">Synthesized Research Report</div>
+          </div>
+          <div class="stack-pills" style="margin-top:8px;">
+            <span class="pill pill-blue">RouterRetriever</span>
+            <span class="pill pill-blue">FunctionCallingAgent</span>
+            <span class="pill pill-blue">QueryEngineTool</span>
+          </div>
+        </div>
+        <div>
+          <div class="col-label">💬 Memory Chatbot (#115)</div>
+          <p style="font-size:13px;color:#64748b;margin-bottom:10px;">Chat engine with <strong>short-term</strong> (ChatMemoryBuffer) + <strong>long-term</strong> (VectorMemory in Redis) memory. Learns user preferences across sessions. HITL for important actions.</p>
+          <pre style="margin:0;font-size:11px;"><span class="kw">from</span> <span class="var">llama_index.core.memory</span> <span class="kw">import</span> <span class="fn">SimpleComposableMemory</span>
+
+<span class="var">memory</span> = <span class="fn">SimpleComposableMemory</span>.<span class="fn">from_defaults</span>(
+    primary_memory=<span class="fn">ChatMemoryBuffer</span>.<span class="fn">from_defaults</span>(
+        token_limit=<span class="nv">4096</span>
+    ),
+    secondary_memory_sources=[
+        <span class="fn">VectorMemory</span>.<span class="fn">from_defaults</span>(
+            vector_store=<span class="var">redis_vector_store</span>
+        )
+    ]
+)
+
+<span class="var">chat_engine</span> = <span class="var">index</span>.<span class="fn">as_chat_engine</span>(
+    chat_mode=<span class="str">"condense_plus_context"</span>,
+    memory=<span class="var">memory</span>
+)</pre>
+          <div class="stack-pills" style="margin-top:8px;">
+            <span class="pill pill-green">SimpleComposableMemory</span>
+            <span class="pill pill-green">RedisChatStore</span>
+            <span class="pill pill-green">VectorMemory</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 116 + 117 — Full-stack + Multi-tenant -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#116 · #117</span>
+      <h2>Full-Stack Web App &amp; Multi-Tenant RAG</h2>
+    </div>
+    <div class="card-body">
+      <div class="two-col">
+        <div>
+          <div class="col-label">🌐 Full-Stack App (#116)</div>
+          <p style="font-size:13px;color:#64748b;margin-bottom:8px;">FastAPI streaming backend + React frontend. Key: use SSE for streaming tokens so users see the answer being generated in real time.</p>
+          <pre style="margin:0;font-size:11px;"><span class="cm"># Backend — FastAPI SSE streaming</span>
+<span class="kw">@app</span>.<span class="fn">post</span>(<span class="str">"/chat/stream"</span>)
+<span class="kw">async def</span> <span class="fn">stream</span>(<span class="var">req</span>: <span class="fn">ChatReq</span>):
+    <span class="var">engine</span> = <span class="fn">get_chat_engine</span>(<span class="var">req</span>.<span class="var">session_id</span>)
+    <span class="var">resp</span> = <span class="kw">await</span> <span class="var">engine</span>.<span class="fn">astream_chat</span>(<span class="var">req</span>.<span class="var">message</span>)
+
+    <span class="kw">async def</span> <span class="fn">gen</span>():
+        <span class="kw">async for</span> <span class="var">token</span> <span class="kw">in</span> <span class="var">resp</span>.<span class="fn">async_response_gen</span>():
+            <span class="kw">yield</span> <span class="fn">f</span><span class="str">"data: {token}\n\n"</span>
+
+    <span class="kw">return</span> <span class="fn">StreamingResponse</span>(<span class="fn">gen</span>(),
+        media_type=<span class="str">"text/event-stream"</span>)
+
+<span class="cm"># Frontend — React</span>
+<span class="cm">// const resp = await fetch('/chat/stream', {...})</span>
+<span class="cm">// const reader = resp.body.getReader()</span>
+<span class="cm">// while streaming: setMessage(prev => prev + token)</span></pre>
+        </div>
+        <div>
+          <div class="col-label">🏢 Multi-Tenant (#117)</div>
+          <p style="font-size:13px;color:#64748b;margin-bottom:8px;">Pinecone namespace per tenant = full data isolation with one index. Auth middleware injects tenant_id from JWT — never trust user-provided tenant ID.</p>
+          <pre style="margin:0;font-size:11px;"><span class="cm"># Auth middleware extracts tenant from JWT</span>
+<span class="kw">async def</span> <span class="fn">get_current_tenant</span>(<span class="var">token</span>: <span class="var">str</span> = <span class="fn">Depends</span>(<span class="var">oauth2_scheme</span>)):
+    <span class="var">payload</span> = <span class="var">jwt</span>.<span class="fn">decode</span>(<span class="var">token</span>, <span class="var">SECRET</span>)
+    <span class="kw">return</span> <span class="var">payload</span>[<span class="str">"tenant_id"</span>]  <span class="cm"># from verified JWT</span>
+
+<span class="kw">@app</span>.<span class="fn">post</span>(<span class="str">"/query"</span>)
+<span class="kw">async def</span> <span class="fn">query</span>(<span class="var">req</span>: <span class="fn">QueryReq</span>,
+                <span class="var">tenant_id</span>: <span class="var">str</span> = <span class="fn">Depends</span>(<span class="fn">get_current_tenant</span>)):
+
+    <span class="cm"># Scoped to tenant's namespace only</span>
+    <span class="var">vector_store</span> = <span class="fn">PineconeVectorStore</span>(
+        index_name=<span class="str">"main"</span>,
+        namespace=<span class="var">tenant_id</span>  <span class="cm"># ← isolation guaranteed</span>
+    )
+    <span class="var">index</span> = <span class="fn">VectorStoreIndex</span>.<span class="fn">from_vector_store</span>(<span class="var">vector_store</span>)
+    <span class="kw">return</span> <span class="kw">await</span> <span class="var">index</span>.<span class="fn">as_query_engine</span>().<span class="fn">aquery</span>(<span class="var">req</span>.<span class="var">query</span>)</pre>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 118 + 119 — Financial + SQL+Vector -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#118 · #119</span>
+      <h2>Financial Doc Analysis &amp; SQL + Vector Hybrid Search</h2>
+    </div>
+    <div class="card-body">
+      <div class="section-label">Financial document pipeline (#118)</div>
+      <div class="arch-row">
+        <div class="ab ab-in">📊 PDF Reports</div><span class="arr">→</span>
+        <div class="ab ab-proc">LlamaParse (tables→md)</div><span class="arr">→</span>
+        <div class="ab ab-ret">Vector + SQL Index</div><span class="arr">→</span>
+        <div class="ab ab-llm">Pydantic extraction</div><span class="arr">→</span>
+        <div class="ab ab-out">FinancialReport schema</div>
+      </div>
+      <pre><span class="cm"># LlamaParse preserves table structure as markdown</span>
+<span class="kw">from</span> <span class="var">llama_parse</span> <span class="kw">import</span> <span class="fn">LlamaParse</span>
+
+<span class="var">parser</span> = <span class="fn">LlamaParse</span>(result_type=<span class="str">"markdown"</span>)
+<span class="var">docs</span> = <span class="var">parser</span>.<span class="fn">load_data</span>(<span class="str">"annual_report_2024.pdf"</span>)
+
+<span class="cm"># Extract structured financials from parsed markdown</span>
+<span class="kw">class</span> <span class="fn">FinancialMetrics</span>(<span class="fn">BaseModel</span>):
+    revenue_q1: <span class="var">float</span>; revenue_q2: <span class="var">float</span>; revenue_q3: <span class="var">float</span>; revenue_q4: <span class="var">float</span>
+    net_income: <span class="var">float</span>; gross_margin: <span class="var">float</span>
+
+<span class="var">metrics</span> = <span class="var">llm</span>.<span class="fn">structured_predict</span>(<span class="fn">FinancialMetrics</span>,
+    <span class="fn">PromptTemplate</span>(<span class="str">"Extract financials from: {docs}"</span>), docs=<span class="var">str</span>(<span class="var">docs</span>[<span class="nv">0</span>]))</pre>
+
+      <div class="section-label" style="margin-top:14px;">SQL + Vector router (#119)</div>
+      <pre><span class="kw">from</span> <span class="var">llama_index.core.query_engine</span> <span class="kw">import</span> <span class="fn">RouterQueryEngine</span>
+<span class="kw">from</span> <span class="var">llama_index.core.selectors</span> <span class="kw">import</span> <span class="fn">LLMSingleSelector</span>
+
+<span class="cm"># SQL engine for structured/aggregation queries</span>
+<span class="var">sql_engine</span>  = <span class="fn">NLSQLTableQueryEngine</span>(sql_database=<span class="var">sql_db</span>, tables=[<span class="str">"orders"</span>, <span class="str">"products"</span>])
+<span class="cm"># Vector engine for semantic/narrative queries</span>
+<span class="var">rag_engine</span>  = <span class="var">index</span>.<span class="fn">as_query_engine</span>()
+
+<span class="cm"># Router picks the right engine based on query type</span>
+<span class="var">router</span> = <span class="fn">RouterQueryEngine</span>(
+    selector=<span class="fn">LLMSingleSelector</span>.<span class="fn">from_defaults</span>(),
+    query_engine_tools=[
+        <span class="fn">QueryEngineTool</span>.<span class="fn">from_defaults</span>(<span class="var">sql_engine</span>,
+            description=<span class="str">"For aggregations, counts, sums, comparisons on structured data"</span>),
+        <span class="fn">QueryEngineTool</span>.<span class="fn">from_defaults</span>(<span class="var">rag_engine</span>,
+            description=<span class="str">"For narrative questions about policies, strategy, explanations"</span>)
+    ]
+)
+<span class="cm"># "What is total Q3 revenue?" → SQL  |  "What is our growth strategy?" → RAG</span></pre>
+    </div>
+  </div>
+
+
+  <!-- CARD 120 + 121 + 122 — Report Gen + OCR + Corrective RAG -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#120 · #121 · #122</span>
+      <h2>Report Generation · Agentic OCR · Corrective RAG</h2>
+    </div>
+    <div class="card-body">
+      <div class="section-label">Automated report generation workflow (#120)</div>
+      <p>A Workflow that fans out to multiple data sources in parallel, gathers results, then synthesizes a structured report with Pydantic output.</p>
+      <div class="arch-row">
+        <div class="ab ab-in">Trigger</div><span class="arr">→</span>
+        <div style="display:flex;flex-direction:column;gap:4px;">
+          <div class="ab ab-ret" style="font-size:10px;">RAG query</div>
+          <div class="ab ab-ret" style="font-size:10px;">SQL metrics</div>
+          <div class="ab ab-ret" style="font-size:10px;">Web search</div>
+        </div>
+        <span class="arr">→ collect_events →</span>
+        <div class="ab ab-llm">Synthesize</div><span class="arr">→</span>
+        <div class="ab ab-out">Structured PDF Report</div>
+      </div>
+      <pre><span class="cm"># Workflow emits 3 parallel SourceEvents (see Topic 13 #78)</span>
+<span class="cm"># Then collect_events(ev, [SourceEvent]*3) waits for all 3</span>
+<span class="cm"># Then structured_predict(ReportSchema) produces the final output</span>
+
+<span class="kw">class</span> <span class="fn">ReportWorkflow</span>(<span class="fn">Workflow</span>):
+    <span class="kw">@step</span>
+    <span class="kw">async def</span> <span class="fn">gather_rag</span>(<span class="var">self</span>, ev: <span class="fn">StartEvent</span>) -> <span class="fn">SourceEvent</span>:
+        <span class="kw">return</span> <span class="fn">SourceEvent</span>(src=<span class="str">"rag"</span>,
+            data=<span class="kw">await</span> <span class="var">rag_engine</span>.<span class="fn">aquery</span>(<span class="var">ev</span>.<span class="var">topic</span>))
+    <span class="kw">@step</span>
+    <span class="kw">async def</span> <span class="fn">gather_sql</span>(<span class="var">self</span>, ev: <span class="fn">StartEvent</span>) -> <span class="fn">SourceEvent</span>:
+        <span class="kw">return</span> <span class="fn">SourceEvent</span>(src=<span class="str">"sql"</span>,
+            data=<span class="kw">await</span> <span class="var">sql_engine</span>.<span class="fn">aquery</span>(<span class="var">ev</span>.<span class="var">topic</span>))
+    <span class="kw">@step</span>
+    <span class="kw">async def</span> <span class="fn">synthesize</span>(<span class="var">self</span>, ctx: <span class="fn">Context</span>, ev: <span class="fn">SourceEvent</span>) -> <span class="fn">StopEvent</span>:
+        <span class="var">all_data</span> = <span class="var">ctx</span>.<span class="fn">collect_events</span>(<span class="var">ev</span>, [<span class="fn">SourceEvent</span>] * <span class="nv">2</span>)
+        <span class="kw">if</span> <span class="kw">not</span> <span class="var">all_data</span>: <span class="kw">return</span> <span class="nv">None</span>
+        <span class="var">report</span> = <span class="var">llm</span>.<span class="fn">structured_predict</span>(<span class="fn">ReportSchema</span>, ...)
+        <span class="kw">return</span> <span class="fn">StopEvent</span>(result=<span class="var">report</span>)</pre>
+
+      <div class="section-label" style="margin-top:16px;">Agentic OCR pipeline (#121)</div>
+      <pre><span class="cm"># End-to-end scanned document processing</span>
+<span class="kw">from</span> <span class="var">llama_parse</span> <span class="kw">import</span> <span class="fn">LlamaParse</span>
+
+<span class="cm"># 1. OCR + parse scanned PDFs</span>
+<span class="var">parser</span> = <span class="fn">LlamaParse</span>(
+    result_type=<span class="str">"markdown"</span>,
+    language=<span class="str">"en"</span>,
+    skip_diagonal_text=<span class="nv">True</span>
+)
+<span class="var">docs</span> = <span class="var">parser</span>.<span class="fn">load_data</span>(<span class="str">"scanned_contract.pdf"</span>)
+
+<span class="cm"># 2. Agent extracts structured data</span>
+<span class="kw">class</span> <span class="fn">ContractData</span>(<span class="fn">BaseModel</span>):
+    parties: <span class="fn">List</span>[<span class="var">str</span>]; effective_date: <span class="var">str</span>
+    payment_terms: <span class="var">str</span>; termination_clauses: <span class="fn">List</span>[<span class="var">str</span>]
+
+<span class="var">agent</span> = <span class="fn">FunctionCallingAgent</span>.<span class="fn">from_tools</span>(
+    tools=[<span class="fn">QueryEngineTool</span>.<span class="fn">from_defaults</span>(
+        <span class="fn">VectorStoreIndex</span>.<span class="fn">from_documents</span>(<span class="var">docs</span>).<span class="fn">as_query_engine</span>(),
+        description=<span class="str">"Search the scanned contract document"</span>
+    )],
+    llm=<span class="fn">OpenAI</span>(model=<span class="str">"gpt-4o"</span>)
+)
+<span class="cm"># 3. Ask agent to extract structured data</span>
+<span class="var">result</span> = <span class="kw">await</span> <span class="var">agent</span>.<span class="fn">astructured_predict</span>(<span class="fn">ContractData</span>,
+    <span class="str">"Extract all key contract terms"</span>)</pre>
+
+      <div class="section-label" style="margin-top:16px;">Corrective RAG — self-correcting retrieval (#122)</div>
+      <p>The most sophisticated RAG pattern. After generating an answer, the system <em>grades</em> it. If quality is insufficient, it refines the query and retrieves again — up to a max iterations limit.</p>
+      <pre><span class="kw">class</span> <span class="fn">GradeEvent</span>(<span class="fn">Event</span>): answer: <span class="var">str</span>; is_good: <span class="var">bool</span>; query: <span class="var">str</span>
+
+<span class="kw">class</span> <span class="fn">CorrectiveRAGWorkflow</span>(<span class="fn">Workflow</span>):
+
+    <span class="kw">@step</span>
+    <span class="kw">async def</span> <span class="fn">retrieve_and_answer</span>(<span class="var">self</span>, ctx: <span class="fn">Context</span>, ev: <span class="fn">StartEvent</span>) -> <span class="fn">GradeEvent</span>:
+        <span class="var">nodes</span>   = <span class="kw">await</span> <span class="var">retriever</span>.<span class="fn">aretrieve</span>(<span class="var">ev</span>.<span class="var">query</span>)
+        <span class="var">answer</span>  = <span class="kw">await</span> <span class="var">synthesizer</span>.<span class="fn">asynthesize</span>(<span class="var">ev</span>.<span class="var">query</span>, <span class="var">nodes</span>)
+        <span class="kw">return</span> <span class="fn">GradeEvent</span>(answer=<span class="var">str</span>(<span class="var">answer</span>), is_good=<span class="nv">False</span>, query=<span class="var">ev</span>.<span class="var">query</span>)
+
+    <span class="kw">@step</span>
+    <span class="kw">async def</span> <span class="fn">grade</span>(<span class="var">self</span>, ctx: <span class="fn">Context</span>, ev: <span class="fn">GradeEvent</span>) -> <span class="fn">Union</span>[<span class="fn">StartEvent</span>, <span class="fn">StopEvent</span>]:
+        <span class="var">tries</span> = <span class="kw">await</span> <span class="var">ctx</span>.<span class="fn">get</span>(<span class="str">"tries"</span>, default=<span class="nv">0</span>)
+        <span class="cm"># Use LLM to grade the answer quality</span>
+        <span class="var">grade</span> = <span class="kw">await</span> <span class="var">faithfulness_evaluator</span>.<span class="fn">aevaluate_response</span>(response=<span class="var">ev</span>.<span class="var">answer</span>)
+
+        <span class="kw">if</span> <span class="var">grade</span>.<span class="var">passing</span> <span class="kw">or</span> <span class="var">tries</span> >= <span class="nv">3</span>:
+            <span class="kw">return</span> <span class="fn">StopEvent</span>(result=<span class="var">ev</span>.<span class="var">answer</span>)   <span class="cm"># ✅ good answer or max retries</span>
+
+        <span class="cm"># Refine query and retry retrieval</span>
+        <span class="kw">await</span> <span class="var">ctx</span>.<span class="fn">set</span>(<span class="str">"tries"</span>, <span class="var">tries</span> + <span class="nv">1</span>)
+        <span class="var">refined</span> = <span class="kw">await</span> <span class="var">llm</span>.<span class="fn">acomplete</span>(<span class="fn">f</span><span class="str">"Rephrase to find better evidence: {ev.query}"</span>)
+        <span class="kw">return</span> <span class="fn">StartEvent</span>(query=<span class="var">str</span>(<span class="var">refined</span>))   <span class="cm"># 🔄 retry</span></pre>
+
+      <div class="note note-amber">
+        <span class="icon">🎯</span>
+        <span><strong>Corrective RAG</strong> is the most production-ready pattern for high-stakes use cases (legal, medical, finance). It trades latency for quality — 2–3× slower but faithfulness jumps from ~0.75 to ~0.92+.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- COMPLETION SUMMARY -->
+  <div class="complete-summary">
+    <div class="cs-title">🎓 All 122 Topics Complete</div>
+    <div class="cs-grid">
+      <div class="cs-stat">
+        <div class="cs-val">122</div>
+        <div class="cs-label">Topics covered</div>
+      </div>
+      <div class="cs-stat">
+        <div class="cs-val">19</div>
+        <div class="cs-label">HTML study notes</div>
+      </div>
+      <div class="cs-stat">
+        <div class="cs-val">~400</div>
+        <div class="cs-label">Code examples</div>
+      </div>
+      <div class="cs-stat">
+        <div class="cs-val">10</div>
+        <div class="cs-label">Production blueprints</div>
+      </div>
+    </div>
+    <div class="cs-path">
+      <strong>The full production path:</strong> Load docs (1–3) → Chunk &amp; embed (3–6) → Index &amp; retrieve (5–8) → Rerank (9) → Chat/Query engines (8, 10) → Structured output (11) → Agents (12) → <strong>Workflows</strong> (13) → Prompt engineering (14) → Observe &amp; trace (15) → Evaluate with RAGAS (16) → Plug in tools via MCP (17) → Deploy on FastAPI + Docker (18) → Ship real systems (19).
+    </div>
+  </div>
+
+  <footer>LlamaIndex Notes · <span>Topic 19 of 19 · COMPLETE</span> · Real-World Project Patterns</footer>
+
+</div>
+</body>
+</html>

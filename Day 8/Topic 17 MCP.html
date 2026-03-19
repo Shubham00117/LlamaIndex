@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>LlamaIndex — Topic 17: MCP</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --surface: #13161e;
+      --border: #1e2330;
+      --accent: #06b6d4;
+      --accent2: #f97316;
+      --accent3: #4ade80;
+      --accent4: #a78bfa;
+      --accent5: #fbbf24;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --code-bg: #0a0c10;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Syne', sans-serif;
+      min-height: 100vh;
+      padding: 40px 20px 80px;
+    }
+
+    .page-wrap { max-width: 900px; margin: 0 auto; }
+
+    .header {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      margin-bottom: 48px;
+      padding-bottom: 28px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tag {
+      background: var(--accent);
+      color: #0d0f14;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 4px;
+      white-space: nowrap;
+      margin-top: 6px;
+    }
+
+    .header-text h1 { font-size: 32px; font-weight: 800; letter-spacing: -0.5px; line-height: 1.1; }
+    .header-text p  { color: var(--muted); font-size: 14px; margin-top: 6px; font-family: 'JetBrains Mono', monospace; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 24px;
+      overflow: hidden;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: var(--accent); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 18px 24px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,0.02);
+    }
+
+    .num {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--accent);
+      background: rgba(6,182,212,0.1);
+      border: 1px solid rgba(6,182,212,0.22);
+      padding: 3px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+    }
+
+    .card-header h2 { font-size: 16px; font-weight: 700; }
+    .card-body { padding: 20px 24px; }
+    .card-body p { font-size: 14px; color: #94a3b8; line-height: 1.7; margin-bottom: 14px; }
+
+    pre {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 18px;
+      overflow-x: auto;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12.5px;
+      line-height: 1.7;
+      margin: 10px 0;
+    }
+
+    .kw  { color: #38bdf8; }
+    .fn  { color: #f97316; }
+    .str { color: #4ade80; }
+    .cm  { color: #475569; font-style: italic; }
+    .var { color: #e2e8f0; }
+    .nv  { color: #a78bfa; }
+
+    .section-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+      margin-top: 4px;
+    }
+
+    .kv-grid {
+      display: grid;
+      grid-template-columns: 220px 1fr;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      margin: 10px 0;
+    }
+    .kv-key {
+      background: rgba(255,255,255,0.03);
+      padding: 10px 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: var(--accent);
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-val {
+      background: rgba(255,255,255,0.01);
+      padding: 10px 14px;
+      font-size: 13px;
+      color: #94a3b8;
+      border-bottom: 1px solid var(--border);
+    }
+    .kv-key:last-of-type, .kv-val:last-of-type { border-bottom: none; }
+
+    .note {
+      display: flex;
+      gap: 10px;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-top: 14px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .note-cyan   { background: rgba(6,182,212,0.07);  border: 1px solid rgba(6,182,212,0.22);  color: #67e8f9; }
+    .note-green  { background: rgba(74,222,128,0.06); border: 1px solid rgba(74,222,128,0.2);  color: #86efac; }
+    .note-orange { background: rgba(249,115,22,0.07); border: 1px solid rgba(249,115,22,0.2);  color: #fdba74; }
+    .note-purple { background: rgba(167,139,250,0.07);border: 1px solid rgba(167,139,250,0.2); color: #c4b5fd; }
+    .note-yellow { background: rgba(251,191,36,0.07); border: 1px solid rgba(251,191,36,0.22); color: #fde68a; }
+    .note span.icon { font-size: 16px; flex-shrink: 0; }
+
+    /* MCP architecture diagram */
+    .mcp-arch {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 24px;
+      margin: 14px 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+    .ma-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      justify-content: center;
+    }
+    .ma-box {
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 700;
+      text-align: center;
+    }
+    .mb-host   { background: rgba(6,182,212,0.12);  border: 1px solid rgba(6,182,212,0.3);  color: #06b6d4; min-width: 140px; }
+    .mb-client { background: rgba(167,139,250,0.12); border: 1px solid rgba(167,139,250,0.3); color: #a78bfa; min-width: 140px; }
+    .mb-server { background: rgba(74,222,128,0.10);  border: 1px solid rgba(74,222,128,0.25); color: #4ade80; min-width: 140px; }
+    .mb-res    { background: rgba(249,115,22,0.10);  border: 1px solid rgba(249,115,22,0.25); color: #fb923c; }
+    .ma-sub    { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); margin-top: 3px; }
+    .ma-arrow  { color: var(--muted); font-size: 18px; flex-shrink: 0; }
+    .ma-label  { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--muted); text-align: center; }
+    .ma-protocol {
+      background: rgba(6,182,212,0.06);
+      border: 1px solid rgba(6,182,212,0.15);
+      border-radius: 6px;
+      padding: 4px 12px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: rgba(6,182,212,0.7);
+    }
+
+    /* Server cards */
+    .server-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin: 14px 0;
+    }
+    .server-card {
+      background: var(--code-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px;
+      transition: border-color 0.2s;
+    }
+    .server-card:hover { border-color: var(--accent); }
+    .sc-icon  { font-size: 18px; margin-bottom: 6px; }
+    .sc-name  { font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 700; margin-bottom: 4px; }
+    .sc-type  {
+      display: inline-block;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      margin-bottom: 6px;
+    }
+    .st-tool  { background: rgba(6,182,212,0.12); color: #06b6d4; border: 1px solid rgba(6,182,212,0.25); }
+    .st-res   { background: rgba(74,222,128,0.10); color: #4ade80; border: 1px solid rgba(74,222,128,0.22); }
+    .st-prom  { background: rgba(167,139,250,0.10);color: #a78bfa; border: 1px solid rgba(167,139,250,0.22); }
+    .sc-desc  { font-size: 11px; color: #64748b; line-height: 1.4; }
+
+    /* Two-col */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin: 12px 0;
+    }
+    .col-label {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    footer {
+      margin-top: 60px;
+      text-align: center;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      color: var(--muted);
+    }
+    footer span { color: var(--accent); }
+
+    @media(max-width:680px){
+      .server-grid { grid-template-columns: repeat(2,1fr); }
+      .two-col     { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+<div class="page-wrap">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="tag">TOPIC 17 / 19</div>
+    <div class="header-text">
+      <h1>MCP — Model Context Protocol</h1>
+      <p>3 subtopics · #99 → #101 · Universal plug-in standard for tools &amp; data</p>
+    </div>
+  </div>
+
+
+  <!-- CARD 99 — What is MCP -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#99</span>
+      <h2>What is MCP &amp; Why It Matters</h2>
+    </div>
+    <div class="card-body">
+      <p>MCP (Model Context Protocol) is an open standard created by Anthropic that defines a universal interface for LLMs to connect to external tools, data sources, and services. Think of it as <strong>USB-C for AI</strong> — any MCP-compatible tool works with any MCP-compatible LLM host without custom integration code.</p>
+
+      <div class="section-label">MCP architecture</div>
+      <div class="mcp-arch">
+        <div class="ma-row">
+          <div>
+            <div class="ma-box mb-host">LLM Host<br/><span class="ma-sub">Claude Desktop / LlamaIndex</span></div>
+          </div>
+          <div class="ma-arrow">↔</div>
+          <div>
+            <div class="ma-protocol">MCP Protocol<br/>(JSON-RPC over stdio/SSE)</div>
+          </div>
+          <div class="ma-arrow">↔</div>
+          <div>
+            <div class="ma-box mb-server">MCP Server<br/><span class="ma-sub">any tool or data source</span></div>
+          </div>
+        </div>
+        <div style="height:8px;"></div>
+        <div class="ma-row" style="gap:40px;">
+          <div class="ma-box mb-client" style="min-width:110px;">MCP Client<br/><span class="ma-sub">inside host app</span></div>
+          <div style="width:40px;"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;">
+            <div class="ma-box mb-res" style="padding:6px 10px;font-size:10px;">Tools</div>
+            <div class="ma-box mb-res" style="padding:6px 10px;font-size:10px;">Resources</div>
+            <div class="ma-box mb-res" style="padding:6px 10px;font-size:10px;">Prompts</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="kv-grid">
+        <div class="kv-key">MCP Host</div>
+        <div class="kv-val">The app embedding the LLM — Claude Desktop, LlamaIndex agent, VS Code, etc.</div>
+        <div class="kv-key">MCP Client</div>
+        <div class="kv-val">Lives inside the host. Manages connections to MCP servers.</div>
+        <div class="kv-key">MCP Server</div>
+        <div class="kv-val">A lightweight service exposing tools, resources, or prompts over the protocol.</div>
+        <div class="kv-key">Tools</div>
+        <div class="kv-val">Callable functions — search, write file, query DB, send email, etc.</div>
+        <div class="kv-key">Resources</div>
+        <div class="kv-val">Read-only data — files, database rows, API responses made available as context.</div>
+        <div class="kv-key">Prompts</div>
+        <div class="kv-val">Reusable prompt templates the server exposes to the host.</div>
+      </div>
+
+      <div class="section-label" style="margin-top:14px;">Why MCP matters for LlamaIndex</div>
+      <div class="server-grid">
+        <div class="server-card">
+          <div class="sc-icon">🔌</div>
+          <div class="sc-name">No custom code</div>
+          <span class="sc-type st-tool">Integration</span>
+          <div class="sc-desc">Use any MCP server as an agent tool without writing a custom wrapper.</div>
+        </div>
+        <div class="server-card">
+          <div class="sc-icon">♻️</div>
+          <div class="sc-name">Reusability</div>
+          <span class="sc-type st-res">Standard</span>
+          <div class="sc-desc">One MCP server works across Claude, LlamaIndex, Cursor, and any other host.</div>
+        </div>
+        <div class="server-card">
+          <div class="sc-icon">🌐</div>
+          <div class="sc-name">Ecosystem</div>
+          <span class="sc-type st-prom">Growing</span>
+          <div class="sc-desc">Hundreds of pre-built servers: GitHub, Slack, Postgres, Notion, Google Drive…</div>
+        </div>
+      </div>
+
+      <div class="note note-cyan">
+        <span class="icon">💡</span>
+        <span>Before MCP, connecting an LLM to GitHub required writing custom API wrappers. With MCP, you point LlamaIndex at the GitHub MCP server and all its tools are instantly available to your agent.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 100 — Using MCP servers in LlamaIndex -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#100</span>
+      <h2>Using MCP Servers in LlamaIndex Agents</h2>
+    </div>
+    <div class="card-body">
+      <p>LlamaIndex can connect to any MCP server and automatically converts its tools into LlamaIndex-compatible <code style="font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--accent)">FunctionTool</code> objects that agents can use natively.</p>
+
+      <div class="section-label">Connect to a local MCP server (stdio transport)</div>
+      <pre><span class="fn">pip install</span> <span class="str">llama-index-tools-mcp</span>
+
+<span class="kw">from</span> <span class="var">llama_index.tools.mcp</span> <span class="kw">import</span> <span class="fn">MCPToolSpec</span>
+<span class="kw">from</span> <span class="var">llama_index.core.agent</span> <span class="kw">import</span> <span class="fn">FunctionCallingAgent</span>
+<span class="kw">from</span> <span class="var">llama_index.llms.openai</span> <span class="kw">import</span> <span class="fn">OpenAI</span>
+
+<span class="cm"># Connect to a local MCP server via stdio</span>
+<span class="var">mcp_spec</span> = <span class="fn">MCPToolSpec</span>(
+    server_params={
+        <span class="str">"command"</span>: <span class="str">"npx"</span>,
+        <span class="str">"args"</span>: [<span class="str">"-y"</span>, <span class="str">"@modelcontextprotocol/server-filesystem"</span>, <span class="str">"/tmp"</span>],
+    }
+)
+
+<span class="cm"># Get tools from the MCP server</span>
+<span class="var">tools</span> = <span class="kw">await</span> <span class="var">mcp_spec</span>.<span class="fn">to_tool_list_async</span>()
+<span class="fn">print</span>([<span class="var">t</span>.<span class="var">metadata</span>.<span class="var">name</span> <span class="kw">for</span> <span class="var">t</span> <span class="kw">in</span> <span class="var">tools</span>])
+<span class="cm"># ['read_file', 'write_file', 'list_directory', 'create_directory', ...]</span>
+
+<span class="cm"># Use all MCP tools in an agent — automatically</span>
+<span class="var">agent</span> = <span class="fn">FunctionCallingAgent</span>.<span class="fn">from_tools</span>(
+    tools=<span class="var">tools</span>,
+    llm=<span class="fn">OpenAI</span>(model=<span class="str">"gpt-4o"</span>),
+    verbose=<span class="nv">True</span>
+)
+
+<span class="var">response</span> = <span class="kw">await</span> <span class="var">agent</span>.<span class="fn">achat</span>(<span class="str">"List all Python files in /tmp and summarize the largest one"</span>)</pre>
+
+      <div class="section-label" style="margin-top:14px;">Connect to remote MCP server (SSE transport)</div>
+      <pre><span class="cm"># Some MCP servers run as HTTP services (SSE transport)</span>
+<span class="var">mcp_spec</span> = <span class="fn">MCPToolSpec</span>(
+    server_params={
+        <span class="str">"url"</span>: <span class="str">"http://localhost:8080/sse"</span>,
+        <span class="str">"transport"</span>: <span class="str">"sse"</span>
+    }
+)
+
+<span class="var">tools</span> = <span class="kw">await</span> <span class="var">mcp_spec</span>.<span class="fn">to_tool_list_async</span>()
+
+<span class="cm"># Mix MCP tools with regular LlamaIndex tools</span>
+<span class="var">rag_tool</span> = <span class="fn">QueryEngineTool</span>.<span class="fn">from_defaults</span>(
+    query_engine=<span class="var">query_engine</span>,
+    name=<span class="str">"search_docs"</span>,
+    description=<span class="str">"Search internal documents"</span>
+)
+
+<span class="var">agent</span> = <span class="fn">FunctionCallingAgent</span>.<span class="fn">from_tools</span>(
+    tools=[*<span class="var">tools</span>, <span class="var">rag_tool</span>],  <span class="cm"># MCP tools + RAG tool together</span>
+    llm=<span class="fn">OpenAI</span>(model=<span class="str">"gpt-4o"</span>)
+)</pre>
+
+      <div class="section-label" style="margin-top:14px;">Popular pre-built MCP servers</div>
+      <div class="server-grid">
+        <div class="server-card">
+          <div class="sc-icon">📁</div>
+          <div class="sc-name">Filesystem</div>
+          <span class="sc-type st-tool">Tools</span>
+          <div class="sc-desc">Read, write, list files. <code style="font-size:10px;">@modelcontextprotocol/server-filesystem</code></div>
+        </div>
+        <div class="server-card">
+          <div class="sc-icon">🐙</div>
+          <div class="sc-name">GitHub</div>
+          <span class="sc-type st-tool">Tools</span>
+          <div class="sc-desc">PRs, issues, repos, commits. <code style="font-size:10px;">@modelcontextprotocol/server-github</code></div>
+        </div>
+        <div class="server-card">
+          <div class="sc-icon">🗄️</div>
+          <div class="sc-name">PostgreSQL</div>
+          <span class="sc-type st-res">Resources</span>
+          <div class="sc-desc">Query any Postgres DB. <code style="font-size:10px;">@modelcontextprotocol/server-postgres</code></div>
+        </div>
+        <div class="server-card">
+          <div class="sc-icon">💬</div>
+          <div class="sc-name">Slack</div>
+          <span class="sc-type st-tool">Tools</span>
+          <div class="sc-desc">Send messages, search channels. <code style="font-size:10px;">@modelcontextprotocol/server-slack</code></div>
+        </div>
+        <div class="server-card">
+          <div class="sc-icon">🌐</div>
+          <div class="sc-name">Brave Search</div>
+          <span class="sc-type st-tool">Tools</span>
+          <div class="sc-desc">Web search via Brave API. <code style="font-size:10px;">@modelcontextprotocol/server-brave-search</code></div>
+        </div>
+        <div class="server-card">
+          <div class="sc-icon">📊</div>
+          <div class="sc-name">Google Drive</div>
+          <span class="sc-type st-res">Resources</span>
+          <div class="sc-desc">Read Drive files as resources. <code style="font-size:10px;">@modelcontextprotocol/server-gdrive</code></div>
+        </div>
+      </div>
+
+      <div class="note note-green">
+        <span class="icon">⚡</span>
+        <span>A complete pre-built MCP tool ecosystem lives at <strong>github.com/modelcontextprotocol/servers</strong>. Before writing any custom tool, check if an MCP server already exists for what you need.</span>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- CARD 101 — Building MCP servers -->
+  <div class="card">
+    <div class="card-header">
+      <span class="num">#101</span>
+      <h2>Building Your Own MCP Server</h2>
+    </div>
+    <div class="card-body">
+      <p>You can wrap any Python function, API, or LlamaIndex component as an MCP server. Once built, it's instantly usable from Claude Desktop, Cursor, LlamaIndex, or any other MCP-compatible host.</p>
+
+      <div class="section-label">Minimal MCP server in Python</div>
+      <pre><span class="fn">pip install</span> <span class="str">mcp</span>
+
+<span class="kw">from</span> <span class="var">mcp.server</span> <span class="kw">import</span> <span class="fn">Server</span>
+<span class="kw">from</span> <span class="var">mcp.server.stdio</span> <span class="kw">import</span> <span class="fn">stdio_server</span>
+<span class="kw">from</span> <span class="var">mcp.types</span> <span class="kw">import</span> <span class="fn">Tool</span>, <span class="fn">TextContent</span>
+<span class="kw">import</span> <span class="var">asyncio</span>
+
+<span class="cm"># Create server</span>
+<span class="var">server</span> = <span class="fn">Server</span>(<span class="str">"my-rag-server"</span>)
+
+<span class="cm"># Declare tools</span>
+<span class="kw">@server</span>.<span class="fn">list_tools</span>()
+<span class="kw">async def</span> <span class="fn">list_tools</span>():
+    <span class="kw">return</span> [
+        <span class="fn">Tool</span>(
+            name=<span class="str">"search_documents"</span>,
+            description=<span class="str">"Search internal company documents for relevant information"</span>,
+            inputSchema={
+                <span class="str">"type"</span>: <span class="str">"object"</span>,
+                <span class="str">"properties"</span>: {
+                    <span class="str">"query"</span>: {<span class="str">"type"</span>: <span class="str">"string"</span>, <span class="str">"description"</span>: <span class="str">"Search query"</span>}
+                },
+                <span class="str">"required"</span>: [<span class="str">"query"</span>]
+            }
+        )
+    ]
+
+<span class="cm"># Handle tool calls</span>
+<span class="kw">@server</span>.<span class="fn">call_tool</span>()
+<span class="kw">async def</span> <span class="fn">call_tool</span>(name: <span class="var">str</span>, arguments: <span class="var">dict</span>):
+    <span class="kw">if</span> <span class="var">name</span> == <span class="str">"search_documents"</span>:
+        <span class="cm"># Use LlamaIndex query engine inside MCP tool!</span>
+        <span class="var">response</span> = <span class="kw">await</span> <span class="var">query_engine</span>.<span class="fn">aquery</span>(<span class="var">arguments</span>[<span class="str">"query"</span>])
+        <span class="kw">return</span> [<span class="fn">TextContent</span>(type=<span class="str">"text"</span>, text=<span class="var">str</span>(<span class="var">response</span>))]
+
+<span class="cm"># Run via stdio</span>
+<span class="kw">async def</span> <span class="fn">main</span>():
+    <span class="kw">async with</span> <span class="fn">stdio_server</span>() <span class="kw">as</span> (<span class="var">read</span>, <span class="var">write</span>):
+        <span class="kw">await</span> <span class="var">server</span>.<span class="fn">run</span>(<span class="var">read</span>, <span class="var">write</span>)
+
+<span class="var">asyncio</span>.<span class="fn">run</span>(<span class="fn">main</span>())</pre>
+
+      <div class="section-label" style="margin-top:14px;">Expose LlamaIndex as MCP server — full pattern</div>
+      <pre><span class="cm"># Expose your entire RAG system as an MCP server</span>
+<span class="cm"># Any MCP client (Claude Desktop etc.) can now use your RAG</span>
+
+<span class="kw">@server</span>.<span class="fn">list_resources</span>()
+<span class="kw">async def</span> <span class="fn">list_resources</span>():
+    <span class="cm"># Expose indexed documents as MCP resources</span>
+    <span class="var">doc_names</span> = <span class="kw">await</span> <span class="fn">get_all_document_names</span>()
+    <span class="kw">return</span> [
+        <span class="fn">Resource</span>(
+            uri=<span class="fn">f</span><span class="str">"doc://{name}"</span>,
+            name=<span class="var">name</span>,
+            description=<span class="fn">f</span><span class="str">"Company document: {name}"</span>,
+            mimeType=<span class="str">"text/plain"</span>
+        )
+        <span class="kw">for</span> <span class="var">name</span> <span class="kw">in</span> <span class="var">doc_names</span>
+    ]
+
+<span class="kw">@server</span>.<span class="fn">read_resource</span>()
+<span class="kw">async def</span> <span class="fn">read_resource</span>(uri: <span class="var">str</span>):
+    <span class="var">doc_name</span> = <span class="var">uri</span>.<span class="fn">replace</span>(<span class="str">"doc://"</span>, <span class="str">""</span>)
+    <span class="var">content</span> = <span class="kw">await</span> <span class="fn">load_document</span>(<span class="var">doc_name</span>)
+    <span class="kw">return</span> [<span class="fn">TextContent</span>(type=<span class="str">"text"</span>, text=<span class="var">content</span>)]</pre>
+
+      <div class="section-label" style="margin-top:14px;">Register with Claude Desktop (claude_desktop_config.json)</div>
+      <pre><span class="cm">// ~/Library/Application Support/Claude/claude_desktop_config.json</span>
+<span class="j-brace">{</span>
+  <span class="str">"mcpServers"</span>: {
+    <span class="str">"my-rag-server"</span>: {
+      <span class="str">"command"</span>: <span class="str">"python"</span>,
+      <span class="str">"args"</span>: [<span class="str">"/path/to/my_mcp_server.py"</span>],
+      <span class="str">"env"</span>: {
+        <span class="str">"OPENAI_API_KEY"</span>: <span class="str">"sk-..."</span>
+      }
+    }
+  }
+<span class="j-brace">}</span></pre>
+
+      <div class="kv-grid" style="margin-top:10px;">
+        <div class="kv-key">stdio transport</div>
+        <div class="kv-val">Default. Server runs as subprocess. Best for local dev + Claude Desktop.</div>
+        <div class="kv-key">SSE transport</div>
+        <div class="kv-val">Server runs as HTTP service. Best for remote / production deployments.</div>
+        <div class="kv-key">Resources</div>
+        <div class="kv-val">Expose read-only data (docs, DB rows). LLM can request them as context.</div>
+        <div class="kv-key">Tools</div>
+        <div class="kv-val">Callable functions. LLM decides when to call them.</div>
+        <div class="kv-key">Prompts</div>
+        <div class="kv-val">Reusable prompt templates — expose via server for consistent LLM instructions.</div>
+      </div>
+
+      <div class="note note-cyan">
+        <span class="icon">🚀</span>
+        <span><strong>The killer pattern:</strong> Build your LlamaIndex RAG system → wrap it as an MCP server → register in Claude Desktop. Now any Claude conversation can search your company's documents with zero extra code.</span>
+      </div>
+
+      <div class="note note-orange" style="margin-top:8px;">
+        <span class="icon">🌐</span>
+        <span>Find thousands of community MCP servers at <strong>mcp.so</strong> and the official <strong>github.com/modelcontextprotocol/servers</strong> registry. Always check here before building your own.</span>
+      </div>
+    </div>
+  </div>
+
+  <footer>LlamaIndex Notes · <span>Topic 17 of 19</span> · MCP — Model Context Protocol</footer>
+
+</div>
+</body>
+</html>

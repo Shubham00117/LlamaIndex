@@ -13,7 +13,7 @@ This roadmap is designed for a structured 8-day deep dive into LlamaIndex, cover
 | **Day 5** | **Chat Engines & Data Extraction** | Topics 10-11. Building multi-turn chat interfaces with memory and extracting structured pydantic data from documents. | ✅ Uploaded to Git / Present Locally |
 | **Day 6** | **Agents & Workflows** | Topics 12-13. Moving from passive pipelines to active Agents (ReAct) and event-driven Workflows for complex production logic. | ✅ Uploaded to Git / Present Locally |
 | **Day 7** | **Prompts, Observability & Eval** | Topics 14-16. System prompts tuning, tracing pipelines with Arize Phoenix, and RAG evaluation (Faithfulness, Relevance). | ✅ Uploaded to Git / Present Locally |
-| **Day 8** | **MCP, Production & Real-World Patterns** | Topics 17-19. Connecting with Model Context Protocol (MCP), FastAPI deployment, Dockerization, and enterprise architectural patterns. | 📂 Present Locally (To be uploaded) |
+| **Day 8** | **MCP, Production & Real-World Patterns** | Topics 17-19. Connecting with Model Context Protocol (MCP), FastAPI deployment, Dockerization, and enterprise architectural patterns. | ✅ Uploaded to Git / Present Locally |
 
 ---
 
